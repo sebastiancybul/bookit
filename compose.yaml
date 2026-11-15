@@ -1,0 +1,21 @@
+name: bookit
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: bookit
+      POSTGRES_USER: bookit
+      POSTGRES_PASSWORD: bookit
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookit -d bookit"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

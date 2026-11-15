@@ -1,0 +1,14 @@
+# Personal notes, plans, scratch files – never committed
+/.private/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
