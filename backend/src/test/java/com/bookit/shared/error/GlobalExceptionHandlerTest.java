@@ -25,7 +25,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void resourceNotFoundReturns404ProblemDetail() {
-        assertThat(mvc.get().uri("/test/not-found"))
+        assertThat(mvc.get().uri("/api/v1/test/not-found"))
                 .hasStatus(HttpStatus.NOT_FOUND)
                 .hasContentType(MediaType.APPLICATION_PROBLEM_JSON)
                 .bodyJson()
@@ -35,7 +35,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void businessRuleReturns409WithCode() {
-        assertThat(mvc.get().uri("/test/business-rule"))
+        assertThat(mvc.get().uri("/api/v1/test/business-rule"))
                 .hasStatus(HttpStatus.CONFLICT)
                 .bodyJson()
                 .extractingPath("$.code")
@@ -45,7 +45,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void validationErrorReturns400WithFieldList() {
         assertThat(mvc.post()
-                        .uri("/test/validation")
+                        .uri("/api/v1/test/validation")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"\"}"))
                 .hasStatus(HttpStatus.BAD_REQUEST)
@@ -56,7 +56,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void unexpectedErrorReturns500WithoutLeakingDetails() {
-        assertThat(mvc.get().uri("/test/unexpected"))
+        assertThat(mvc.get().uri("/api/v1/test/unexpected"))
                 .hasStatus(HttpStatus.INTERNAL_SERVER_ERROR)
                 .bodyText()
                 .contains("An unexpected error occurred")
