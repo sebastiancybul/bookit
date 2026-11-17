@@ -8,6 +8,7 @@ import com.bookit.auth.config.JwtConfig;
 import com.bookit.auth.config.SecurityConfig;
 import com.bookit.auth.security.AuthCookies;
 import com.bookit.auth.service.AuthService;
+import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.user.dto.UserResponse;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
@@ -40,6 +41,11 @@ class AuthControllerTest {
             {"email": "jan@test.pl", "password": "Test1234!"}
             """;
 
+    private static final String REGISTER_JSON = """
+            {"email": "jan@test.pl", "password": "Testowe123!", "firstName": "Jan",
+             "lastName": "Testowy", "phone": "+48600123456"}
+            """;
+
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UserResponse USER =
             new UserResponse(USER_ID, "Jan", "Testowy", "jan@test.pl", Set.of("ROLE_CLIENT"));
@@ -62,6 +68,60 @@ class AuthControllerTest {
                 .hasStatus(HttpStatus.NO_CONTENT)
                 .cookies()
                 .containsCookie("XSRF-TOKEN");
+    }
+
+    @Test
+    void registerReturns201WithUserAndAccessTokenCookie() {
+        given(authService.register(any())).willReturn(new AuthService.LoginResult(USER, "signed.jwt.value"));
+        Cookie xsrf = fetchXsrfCookie();
+
+        MvcTestResult result = mvc.post().uri("/api/v1/auth/register")
+                .cookie(xsrf)
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(REGISTER_JSON)
+                .exchange();
+
+        assertThat(result).hasStatus(HttpStatus.CREATED)
+                .bodyJson()
+                .extractingPath("$.email")
+                .isEqualTo("jan@test.pl");
+        assertThat(result.getResponse().getHeader(HttpHeaders.SET_COOKIE))
+                .startsWith("access_token=signed.jwt.value")
+                .contains("HttpOnly");
+    }
+
+    @Test
+    void registerWithWeakPasswordReturns400WithPasswordErrors() {
+        Cookie xsrf = fetchXsrfCookie();
+
+        assertThat(mvc.post().uri("/api/v1/auth/register")
+                        .cookie(xsrf)
+                        .header("X-XSRF-TOKEN", xsrf.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(REGISTER_JSON.replace("Testowe123!", "weakpassword")))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .extractingPath("$.errors[*].field")
+                .asArray()
+                .containsExactly("password");
+    }
+
+    @Test
+    void registerWithTakenEmailReturns409WithCode() {
+        given(authService.register(any()))
+                .willThrow(new BusinessRuleException("EMAIL_TAKEN", "An account with this email already exists"));
+        Cookie xsrf = fetchXsrfCookie();
+
+        assertThat(mvc.post().uri("/api/v1/auth/register")
+                        .cookie(xsrf)
+                        .header("X-XSRF-TOKEN", xsrf.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(REGISTER_JSON))
+                .hasStatus(HttpStatus.CONFLICT)
+                .bodyJson()
+                .extractingPath("$.code")
+                .isEqualTo("EMAIL_TAKEN");
     }
 
     @Test
