@@ -1,6 +1,7 @@
 package com.bookit.auth.controller;
 
 import com.bookit.auth.dto.LoginRequest;
+import com.bookit.auth.dto.RegisterRequest;
 import com.bookit.auth.security.AuthCookies;
 import com.bookit.auth.service.AuthService;
 import com.bookit.user.dto.UserResponse;
@@ -8,6 +9,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -24,6 +26,14 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthCookies authCookies;
+
+    @PostMapping(path = "/register", version = "1")
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+        AuthService.LoginResult result = authService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header(HttpHeaders.SET_COOKIE, authCookies.accessToken(result.accessToken()).toString())
+                .body(result.user());
+    }
 
     @PostMapping(path = "/login", version = "1")
     public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request) {
