@@ -13,7 +13,6 @@ export function Logo() {
         <span className="size-3 rounded-full bg-white" />
       </span>
       bookit
-      
     </Link>
   )
 }
