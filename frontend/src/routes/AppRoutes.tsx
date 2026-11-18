@@ -8,6 +8,8 @@ import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { OwnerDashboardPage } from '@/pages/owner/OwnerDashboardPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { ProtectedRoute } from '@/routes/ProtectedRoute'
+import { PublicRoute } from '@/routes/PublicRoute'
 
 const router = createBrowserRouter([
   {
@@ -17,15 +19,25 @@ const router = createBrowserRouter([
         Component: PublicLayout,
         children: [
           { index: true, Component: HomePage },
-          { path: 'login', Component: LoginPage },
-          { path: 'register', Component: RegisterPage },
+          {
+            Component: PublicRoute,
+            children: [
+              { path: 'login', Component: LoginPage },
+              { path: 'register', Component: RegisterPage },
+            ],
+          },
           { path: '*', Component: NotFoundPage },
         ],
       },
       {
-        path: 'owner',
-        Component: PanelLayout,
-        children: [{ index: true, Component: OwnerDashboardPage }],
+        element: <ProtectedRoute requiredRole="ROLE_OWNER" />,
+        children: [
+          {
+            path: 'owner',
+            Component: PanelLayout,
+            children: [{ index: true, Component: OwnerDashboardPage }],
+          },
+        ],
       },
     ],
   },
