@@ -1,5 +1,6 @@
 package com.bookit.auth.config;
 
+import com.bookit.auth.security.ProblemDetailSecurityHandler;
 import jakarta.servlet.http.Cookie;
 import java.util.Set;
 import org.springframework.context.annotation.Bean;
@@ -34,7 +35,7 @@ public class SecurityConfig {
             "/api/v1/auth/logout");
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemDetailSecurityHandler securityHandler) {
         http
                 .csrf(csrf -> csrf
                         .spa()
@@ -50,7 +51,12 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().denyAll())
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(securityHandler)
+                        .accessDeniedHandler(securityHandler))
                 .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint(securityHandler)
+                        .accessDeniedHandler(securityHandler)
                         .bearerTokenResolver(cookieTokenResolver())
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(rolesFromJwt())));
         return http.build();
