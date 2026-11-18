@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import com.bookit.auth.config.JwtConfig;
 import com.bookit.auth.config.SecurityConfig;
 import com.bookit.auth.security.AuthCookies;
+import com.bookit.auth.security.ProblemDetailSecurityHandler;
 import com.bookit.auth.service.AuthService;
 import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.user.dto.UserResponse;
@@ -34,7 +35,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 @WebMvcTest(controllers = {AuthController.class, CsrfController.class})
-@Import({SecurityConfig.class, JwtConfig.class, AuthCookies.class})
+@Import({SecurityConfig.class, JwtConfig.class, AuthCookies.class, ProblemDetailSecurityHandler.class})
 class AuthControllerTest {
 
     private static final String LOGIN_JSON = """
