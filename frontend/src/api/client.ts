@@ -49,5 +49,42 @@ export const csrfMiddleware: Middleware = {
   },
 }
 
+export class ApiError extends Error {
+  readonly status: number
+  readonly problem: ProblemDetail
+
+  constructor(problem: ProblemDetail) {
+    super(problem.detail ?? problem.title ?? `HTTP ${problem.status}`)
+    this.name = 'ApiError'
+    this.status = problem.status
+    this.problem = problem
+  }
+}
+
+function isProblemDetail(value: unknown): value is ProblemDetail {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as ProblemDetail).status === 'number'
+  )
+}
+
+type ApiResult<T> = {
+  data?: T
+  error?: unknown
+  response: Response
+}
+
+export function unwrap<T>({ data, error, response }: ApiResult<T>): T {
+  if (!response.ok) {
+    throw new ApiError(
+      isProblemDetail(error)
+        ? error
+        : { status: response.status, title: response.statusText },
+    )
+  }
+  return data as T
+}
+
 export const client = createClient<paths>()
 client.use(csrfMiddleware)
