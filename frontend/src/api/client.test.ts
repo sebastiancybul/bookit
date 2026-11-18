@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { csrfMiddleware } from '@/api/client'
+import {
+  ApiError,
+  csrfMiddleware,
+  unwrap,
+  type ProblemDetail,
+} from '@/api/client'
 
 type OnRequestParams = Parameters<
   NonNullable<typeof csrfMiddleware.onRequest>
@@ -55,5 +60,71 @@ describe('csrfMiddleware', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/v1/csrf')
     expect((request as Request).headers.get('X-XSRF-TOKEN')).toBe('fresh-token')
+  })
+})
+
+function thrownBy(action: () => unknown): unknown {
+  try {
+    action()
+  } catch (error) {
+    return error
+  }
+  throw new Error('Expected the action to throw')
+}
+
+describe('unwrap', () => {
+  it('returns data for a 2xx response', () => {
+    const data = {
+      id: '1',
+      email: 'jan@test.pl',
+    }
+
+    const result = unwrap({
+      data,
+      response: new Response(null, { status: 200 }),
+    })
+
+    expect(result).toBe(data)
+  })
+
+  it('throws ApiError carrying the ProblemDetail from the body', () => {
+    const problem: ProblemDetail = {
+      status: 409,
+      title: 'Conflict',
+      detail: 'An account with this email already exists',
+      code: 'EMAIL_TAKEN',
+    }
+
+    const error = thrownBy(() =>
+      unwrap({
+        error: problem,
+        response: new Response(null, { status: 409 }),
+      }),
+    )
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(409)
+    expect((error as ApiError).problem).toEqual(problem)
+    expect((error as ApiError).message).toBe(
+      'An account with this email already exists',
+    )
+  })
+
+  it('falls back to the response status when the body is not a ProblemDetail', () => {
+    const error = thrownBy(() =>
+      unwrap({
+        error: '<html>Bad Gateway</html>',
+        response: new Response(null, {
+          status: 502,
+          statusText: 'Bad Gateway',
+        }),
+      }),
+    )
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).problem).toEqual({
+      status: 502,
+      title: 'Bad Gateway',
+    })
   })
 })
