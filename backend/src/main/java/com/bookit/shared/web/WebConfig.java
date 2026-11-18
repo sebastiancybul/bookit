@@ -12,7 +12,8 @@ class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void configurePathMatch(PathMatchConfigurer configurer) {
-        configurer.addPathPrefix("/api/v{version}", HandlerTypePredicate.forAnnotation(RestController.class));
+        configurer.addPathPrefix("/api/v{version}",
+                HandlerTypePredicate.forBasePackage("com.bookit").and(HandlerTypePredicate.forAnnotation(RestController.class)));
     }
 
     @Override

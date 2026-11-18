@@ -5,6 +5,7 @@ import com.bookit.auth.dto.RegisterRequest;
 import com.bookit.auth.security.AuthCookies;
 import com.bookit.auth.service.AuthService;
 import com.bookit.user.dto.UserResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Auth")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
