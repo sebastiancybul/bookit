@@ -4,6 +4,6 @@
 
 ## Checklist
 
-- [ ] Tests pass locally (`./mvnw verify`, `npm run lint`, `npm run build`)
+- [ ] Tests pass locally (`./mvnw verify`, `npm run lint`, `npm test`, `npm run build`)
 - [ ] No secrets, credentials or `.env` files in the diff
 - [ ] Works with `docker compose --profile app up --build`
