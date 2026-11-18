@@ -49,6 +49,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/me").authenticated()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions
