@@ -1,6 +1,7 @@
 package com.bookit.business.entity;
 
 import com.bookit.shared.BaseEntity;
+import com.bookit.shared.text.Slugs;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -10,6 +11,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,6 +24,8 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Business extends BaseEntity {
 
+    private static final int SLUG_MAX_LENGTH = 120;
+
     @Id
     @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     private UUID id;
@@ -28,10 +33,13 @@ public class Business extends BaseEntity {
     @Column(name = "owner_id", nullable = false, unique = true, updatable = false)
     private UUID ownerId;
 
+    @Column(name = "public_id", nullable = false, unique = true, updatable = false, length = 8)
+    private String publicId;
+
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "slug", nullable = false, unique = true, length = 120)
+    @Column(name = "slug", nullable = false, unique = true, length = SLUG_MAX_LENGTH)
     private String slug;
 
     @Column(name = "description", length = 2000)
@@ -70,8 +78,8 @@ public class Business extends BaseEntity {
 
     public Business(
             UUID ownerId,
+            String publicId,
             String name,
-            String slug,
             String description,
             BusinessCategory category,
             String phone,
@@ -80,14 +88,59 @@ public class Business extends BaseEntity {
             String city,
             String postalCode) {
         this.ownerId = ownerId;
-        this.name = name;
-        this.slug = slug;
-        this.description = description;
+        this.publicId = publicId;
+        applyDetails(name, description, category, phone, email, street, city, postalCode);
+    }
+
+    public void update(
+            String name,
+            String description,
+            BusinessCategory category,
+            String phone,
+            String email,
+            String street,
+            String city,
+            String postalCode) {
+        applyDetails(name, description, category, phone, email, street, city, postalCode);
+    }
+
+    private void applyDetails(
+            String name,
+            String description,
+            BusinessCategory category,
+            String phone,
+            String email,
+            String street,
+            String city,
+            String postalCode) {
+        String strippedEmail = stripToNull(email);
+        this.name = strip(name);
+        this.description = stripToNull(description);
         this.category = category;
-        this.phone = phone;
-        this.email = email == null || email.isBlank() ? null : email.strip().toLowerCase(Locale.ROOT);
-        this.street = street;
-        this.city = city;
-        this.postalCode = postalCode;
+        this.phone = strip(phone);
+        this.email = strippedEmail == null ? null : strippedEmail.toLowerCase(Locale.ROOT);
+        this.street = strip(street);
+        this.city = strip(city);
+        this.postalCode = strip(postalCode);
+        this.slug = buildSlug();
+    }
+
+    private static String strip(String value) {
+        return value == null ? null : value.strip();
+    }
+
+    private static String stripToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
+    }
+
+    private String buildSlug() {
+        String slug = Stream.of(publicId, Slugs.toSlug(name), Slugs.toSlug(city))
+                .filter(part -> !part.isEmpty())
+                .collect(Collectors.joining("-"));
+        if (slug.length() <= SLUG_MAX_LENGTH) {
+            return slug;
+        }
+        String cut = slug.substring(0, SLUG_MAX_LENGTH + 1);
+        return cut.substring(0, cut.lastIndexOf('-'));
     }
 }
