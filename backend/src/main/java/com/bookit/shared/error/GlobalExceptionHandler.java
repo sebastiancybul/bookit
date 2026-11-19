@@ -32,6 +32,13 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(InvalidFieldException.class)
+    ProblemDetail handleInvalidField(InvalidFieldException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");
+        problem.setProperty("errors", List.of(new FieldValidationError(ex.getField(), ex.getMessage())));
+        return problem;
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     ProblemDetail handleBadCredentials(BadCredentialsException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Invalid email or password");

@@ -4,9 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.bookit.auth.controller.CsrfController;
 import com.bookit.auth.security.ProblemDetailSecurityHandler;
+import com.bookit.auth.security.TestTokens;
 import jakarta.servlet.http.Cookie;
-import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,11 +14,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwsHeader;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -75,6 +70,82 @@ class SecurityConfigTest {
         assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
     }
 
+    @Test
+    void ownerPassesOwnerPrefix() {
+        MvcTestResult result = mvc.get().uri("/api/v1/owner/business")
+                .cookie(tokenCookie("ROLE_CLIENT", "ROLE_OWNER"))
+                .exchange();
+
+        assertPassedSecurity(result);
+    }
+
+    @Test
+    void clientIsDeniedOwnerPrefix() {
+        MvcTestResult result = mvc.get().uri("/api/v1/owner/business")
+                .cookie(tokenCookie("ROLE_CLIENT"))
+                .exchange();
+
+        assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @Test
+    void clientIsDeniedOwnerBusinessUpdate() {
+        Cookie xsrf = fetchXsrfCookie();
+
+        MvcTestResult result = mvc.put().uri("/api/v1/owner/business")
+                .cookie(xsrf, tokenCookie("ROLE_CLIENT"))
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @Test
+    void clientCanReachBusinessCreation() {
+        Cookie xsrf = fetchXsrfCookie();
+
+        MvcTestResult result = mvc.post().uri("/api/v1/owner/business")
+                .cookie(xsrf, tokenCookie("ROLE_CLIENT"))
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertPassedSecurity(result);
+    }
+
+    @Test
+    void anonymousBusinessCreationReturns401() {
+        Cookie xsrf = fetchXsrfCookie();
+
+        MvcTestResult result = mvc.post().uri("/api/v1/owner/business")
+                .cookie(xsrf)
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(result, HttpStatus.UNAUTHORIZED, "Authentication required");
+    }
+
+    @Test
+    void employeePassesEmployeePrefix() {
+        MvcTestResult result = mvc.get().uri("/api/v1/employee/appointments")
+                .cookie(tokenCookie("ROLE_CLIENT", "ROLE_EMPLOYEE"))
+                .exchange();
+
+        assertPassedSecurity(result);
+    }
+
+    @Test
+    void ownerIsDeniedEmployeePrefix() {
+        MvcTestResult result = mvc.get().uri("/api/v1/employee/appointments")
+                .cookie(tokenCookie("ROLE_CLIENT", "ROLE_OWNER"))
+                .exchange();
+
+        assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    private void assertPassedSecurity(MvcTestResult result) {
+        assertThat(result.getResponse().getStatus()).isNotIn(401, 403);
+    }
+
     private void assertProblem(MvcTestResult result, HttpStatus status, String detail) {
         assertThat(result)
                 .hasStatus(status)
@@ -84,14 +155,11 @@ class SecurityConfigTest {
                 .isEqualTo(detail);
     }
 
-    private Cookie tokenCookie(String role) {
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .subject(UUID.randomUUID().toString())
-                .expiresAt(Instant.now().plusSeconds(600))
-                .claim("roles", List.of(role))
-                .build();
-        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
-        String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
-        return new Cookie(SecurityConfig.ACCESS_TOKEN_COOKIE, token);
+    private Cookie tokenCookie(String... roles) {
+        return TestTokens.accessTokenCookie(jwtEncoder, UUID.randomUUID(), roles);
+    }
+
+    private Cookie fetchXsrfCookie() {
+        return mvc.get().uri("/api/v1/csrf").exchange().getResponse().getCookie("XSRF-TOKEN");
     }
 }

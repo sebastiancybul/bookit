@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Auth")
@@ -29,6 +30,7 @@ public class AuthController {
     private final AuthService authService;
     private final AuthCookies authCookies;
 
+    @ResponseStatus(HttpStatus.CREATED)
     @PostMapping(path = "/register", version = "1")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthService.LoginResult result = authService.register(request);

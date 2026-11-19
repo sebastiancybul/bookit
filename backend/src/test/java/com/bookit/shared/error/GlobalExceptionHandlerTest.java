@@ -57,6 +57,19 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void invalidFieldReturns400WithSingleFieldError() {
+        assertThat(mvc.get().uri("/api/v1/test/invalid-field"))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .hasContentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .bodyJson()
+                .satisfies(json -> {
+                    assertThat(json).extractingPath("$.detail").isEqualTo("Request validation failed");
+                    assertThat(json).extractingPath("$.errors[0].field").isEqualTo("categoryCode");
+                    assertThat(json).extractingPath("$.errors[0].message").isEqualTo("Unknown category");
+                });
+    }
+
+    @Test
     void unexpectedErrorReturns500WithoutLeakingDetails() {
         assertThat(mvc.get().uri("/api/v1/test/unexpected"))
                 .hasStatus(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -80,6 +93,11 @@ class GlobalExceptionHandlerTest {
 
         @PostMapping("/test/validation")
         void validation(@Valid @RequestBody NameRequest request) {}
+
+        @GetMapping("/test/invalid-field")
+        void invalidField() {
+            throw new InvalidFieldException("categoryCode", "Unknown category");
+        }
 
         @GetMapping("/test/unexpected")
         void unexpected() {
