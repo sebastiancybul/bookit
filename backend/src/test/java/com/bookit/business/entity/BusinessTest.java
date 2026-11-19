@@ -78,6 +78,7 @@ class BusinessTest {
 
         assertThat(business.getPublicId()).isEqualTo(PUBLIC_ID);
         assertThat(business.getSlug()).isEqualTo("k3f9x2ab-studio-urody-zolta-lodz");
+        assertThat(business.getCityKey()).isEqualTo("lodz");
         assertThat(business.getEmail()).isNull();
     }
 
@@ -92,6 +93,7 @@ class BusinessTest {
         assertThat(business.getPhone()).isEqualTo("123456789");
         assertThat(business.getStreet()).isEqualTo("Floriańska 1");
         assertThat(business.getCity()).isEqualTo("Kraków");
+        assertThat(business.getCityKey()).isEqualTo("krakow");
         assertThat(business.getPostalCode()).isEqualTo("31-019");
     }
 

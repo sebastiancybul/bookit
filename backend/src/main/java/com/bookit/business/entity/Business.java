@@ -61,6 +61,9 @@ public class Business extends BaseEntity {
     @Column(name = "city", nullable = false, length = 80)
     private String city;
 
+    @Column(name = "city_key", nullable = false, length = 80)
+    private String cityKey;
+
     @Column(name = "postal_code", nullable = false, length = 6)
     private String postalCode;
 
@@ -121,6 +124,7 @@ public class Business extends BaseEntity {
         this.email = strippedEmail == null ? null : strippedEmail.toLowerCase(Locale.ROOT);
         this.street = strip(street);
         this.city = strip(city);
+        this.cityKey = Slugs.toSlug(this.city);
         this.postalCode = strip(postalCode);
         this.slug = buildSlug();
     }

@@ -142,6 +142,42 @@ class SecurityConfigTest {
         assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
     }
 
+    @Test
+    void invalidTokenCookieIsIgnoredOnPublicBusinessEndpoints() {
+        Cookie garbage = new Cookie(SecurityConfig.ACCESS_TOKEN_COOKIE, "not-a-jwt");
+
+        assertPassedSecurity(mvc.get().uri("/api/v1/businesses").cookie(garbage).exchange());
+        assertPassedSecurity(mvc.get().uri("/api/v1/businesses/abc12345-shop").cookie(garbage).exchange());
+        assertPassedSecurity(mvc.get().uri("/api/v1/categories").cookie(garbage).exchange());
+    }
+
+    @Test
+    void invalidTokenCookieStillReturns401OnProtectedEndpoint() {
+        Cookie garbage = new Cookie(SecurityConfig.ACCESS_TOKEN_COOKIE, "not-a-jwt");
+
+        assertProblem(mvc.get().uri("/api/v1/auth/me").cookie(garbage).exchange(),
+                HttpStatus.UNAUTHORIZED, "Authentication required");
+    }
+
+    @Test
+    void nestedPathUnderBusinessIsNotPublic() {
+        MvcTestResult result = mvc.get().uri("/api/v1/businesses/abc12345-shop/anything").exchange();
+
+        assertProblem(result, HttpStatus.UNAUTHORIZED, "Authentication required");
+    }
+
+    @Test
+    void onlyGetIsPublicUnderBusinesses() {
+        Cookie xsrf = fetchXsrfCookie();
+
+        MvcTestResult result = mvc.post().uri("/api/v1/businesses")
+                .cookie(xsrf, tokenCookie("ROLE_CLIENT"))
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
+    }
+
     private void assertPassedSecurity(MvcTestResult result) {
         assertThat(result.getResponse().getStatus()).isNotIn(401, 403);
     }

@@ -1,7 +1,10 @@
 package com.bookit.shared.text;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -18,8 +21,17 @@ class SlugsTest {
             Café Élégance                | cafe-elegance
             Straße                       | stra-e
             '!!!'                        | ''
+            -                            | ''
+            '- a -'                      | a
             """)
     void convertsTextToSlug(String text, String expected) {
         assertThat(Slugs.toSlug(text)).isEqualTo(expected);
+    }
+
+    @Test
+    void handlesLongRunsOfSeparatorsQuickly() {
+        String text = "-".repeat(100_000) + "a" + "-".repeat(100_000);
+
+        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> assertThat(Slugs.toSlug(text)).isEqualTo("a"));
     }
 }
