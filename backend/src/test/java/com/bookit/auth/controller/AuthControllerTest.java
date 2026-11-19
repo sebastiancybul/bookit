@@ -8,12 +8,11 @@ import com.bookit.auth.config.JwtConfig;
 import com.bookit.auth.config.SecurityConfig;
 import com.bookit.auth.security.AuthCookies;
 import com.bookit.auth.security.ProblemDetailSecurityHandler;
+import com.bookit.auth.security.TestTokens;
 import com.bookit.auth.service.AuthService;
 import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.user.dto.UserResponse;
 import jakarta.servlet.http.Cookie;
-import java.time.Instant;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -25,11 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwsHeader;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -244,13 +239,6 @@ class AuthControllerTest {
     }
 
     private Cookie accessTokenCookie() {
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .subject(USER_ID.toString())
-                .expiresAt(Instant.now().plusSeconds(600))
-                .claim("roles", List.of("ROLE_CLIENT"))
-                .build();
-        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
-        String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
-        return new Cookie(SecurityConfig.ACCESS_TOKEN_COOKIE, token);
+        return TestTokens.accessTokenCookie(jwtEncoder, USER_ID, "ROLE_CLIENT");
     }
 }
