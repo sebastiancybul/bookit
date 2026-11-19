@@ -2,7 +2,6 @@ package com.bookit.auth.config;
 
 import com.bookit.auth.security.ProblemDetailSecurityHandler;
 import jakarta.servlet.http.Cookie;
-import java.util.Set;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,6 +19,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.util.WebUtils;
 
 @Configuration
@@ -28,11 +30,22 @@ public class SecurityConfig {
 
     public static final String ACCESS_TOKEN_COOKIE = "access_token";
 
-    private static final Set<String> PATHS_WITHOUT_TOKEN = Set.of(
-            "/api/v1/csrf",
-            "/api/v1/auth/login",
-            "/api/v1/auth/register",
-            "/api/v1/auth/logout");
+    private static final PathPatternRequestMatcher.Builder PATHS = PathPatternRequestMatcher.withDefaults();
+
+    private static final RequestMatcher PUBLIC_ENDPOINTS = new OrRequestMatcher(
+            PATHS.matcher(HttpMethod.GET, "/api/v1/csrf"),
+            PATHS.matcher(HttpMethod.POST, "/api/v1/auth/login"),
+            PATHS.matcher(HttpMethod.POST, "/api/v1/auth/register"),
+            PATHS.matcher(HttpMethod.POST, "/api/v1/auth/logout"),
+            PATHS.matcher(HttpMethod.GET, "/api/v1/categories"),
+            PATHS.matcher(HttpMethod.GET, "/api/v1/businesses"),
+            PATHS.matcher(HttpMethod.GET, "/api/v1/businesses/*"),
+            PATHS.matcher("/actuator/health"),
+            PATHS.matcher("/actuator/info"),
+            PATHS.matcher(HttpMethod.GET, "/v3/api-docs/**"),
+            PATHS.matcher(HttpMethod.GET, "/swagger-ui.html"),
+            PATHS.matcher(HttpMethod.GET, "/swagger-ui/**"),
+            PATHS.matcher("/error"));
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemDetailSecurityHandler securityHandler) {
@@ -42,18 +55,11 @@ public class SecurityConfig {
                         .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/api/v1/csrf").permitAll()
-                        .requestMatchers(HttpMethod.POST,
-                                "/api/v1/auth/login",
-                                "/api/v1/auth/register",
-                                "/api/v1/auth/logout").permitAll()
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/owner/business").authenticated()
                         .requestMatchers("/api/v1/owner/**").hasRole("OWNER")
                         .requestMatchers("/api/v1/employee/**").hasRole("EMPLOYEE")
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
-                        .requestMatchers("/error").permitAll()
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(securityHandler)
@@ -80,7 +86,7 @@ public class SecurityConfig {
 
     private BearerTokenResolver cookieTokenResolver() {
         return request -> {
-            if (PATHS_WITHOUT_TOKEN.contains(request.getRequestURI())) {
+            if (PUBLIC_ENDPOINTS.matches(request)) {
                 return null;
             }
             Cookie cookie = WebUtils.getCookie(request, ACCESS_TOKEN_COOKIE);
