@@ -32,7 +32,7 @@ public class OwnerBusinessController {
 
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping(version = "1")
-    public ResponseEntity<BusinessResponse> create(
+    public ResponseEntity<BusinessResponse> createBusiness(
             @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BusinessRequest request) {
         BusinessService.CreateResult result = businessService.create(userId(jwt), request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -41,12 +41,12 @@ public class OwnerBusinessController {
     }
 
     @GetMapping(version = "1")
-    public BusinessResponse getMine(@AuthenticationPrincipal Jwt jwt) {
+    public BusinessResponse getMyBusiness(@AuthenticationPrincipal Jwt jwt) {
         return businessService.getMine(userId(jwt));
     }
 
     @PutMapping(version = "1")
-    public BusinessResponse updateMine(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BusinessRequest request) {
+    public BusinessResponse updateMyBusiness(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BusinessRequest request) {
         return businessService.updateMine(userId(jwt), request);
     }
 

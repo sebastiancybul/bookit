@@ -1,8 +1,10 @@
 package com.bookit.business.service.impl;
 
 import com.bookit.auth.security.JwtService;
+import com.bookit.business.dto.BusinessCategoryResponse;
 import com.bookit.business.dto.BusinessRequest;
 import com.bookit.business.dto.BusinessResponse;
+import com.bookit.business.dto.BusinessSummaryResponse;
 import com.bookit.business.entity.Business;
 import com.bookit.business.entity.BusinessCategory;
 import com.bookit.business.repository.BusinessCategoryRepository;
@@ -11,15 +13,21 @@ import com.bookit.business.service.BusinessService;
 import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.shared.error.InvalidFieldException;
 import com.bookit.shared.error.ResourceNotFoundException;
+import com.bookit.shared.text.Slugs;
+import com.bookit.shared.web.PageResponse;
 import com.bookit.user.entity.Role;
 import com.bookit.user.entity.User;
 import com.bookit.user.repository.RoleRepository;
 import com.bookit.user.repository.UserRepository;
 import java.security.SecureRandom;
+import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,6 +98,35 @@ public class BusinessServiceImpl implements BusinessService {
                 request.city(),
                 request.postalCode());
         return BusinessResponse.from(business);
+    }
+
+    @Override
+    public List<BusinessCategoryResponse> getCategories() {
+        return categoryRepository.findAll(Sort.by("name")).stream()
+                .map(BusinessCategoryResponse::from)
+                .toList();
+    }
+
+    @Override
+    public PageResponse<BusinessSummaryResponse> searchPublic(String city, String categoryCode, int page, int size) {
+        String cityKey = city == null ? null : Slugs.toSlug(city);
+        if (cityKey != null && cityKey.isEmpty()) {
+            cityKey = null;
+        }
+        String category = categoryCode == null || categoryCode.isBlank()
+                ? null
+                : categoryCode.strip().toUpperCase(Locale.ROOT);
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("name", "id"));
+        return PageResponse.from(
+                businessRepository.searchActive(cityKey, category, pageRequest), BusinessSummaryResponse::from);
+    }
+
+    @Override
+    public BusinessResponse getPublic(String slug) {
+        String publicId = slug.split("-", 2)[0];
+        return businessRepository.findByPublicIdAndActiveTrue(publicId)
+                .map(BusinessResponse::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Business", slug));
     }
 
     private Business findMine(UUID ownerId) {
