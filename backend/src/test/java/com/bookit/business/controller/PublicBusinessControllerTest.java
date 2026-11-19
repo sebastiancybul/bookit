@@ -104,6 +104,13 @@ class PublicBusinessControllerTest {
     }
 
     @Test
+    void searchWithTooLongCityReturns400() {
+        assertThat(mvc.get().uri("/api/v1/businesses").param("city", "x".repeat(81)))
+                .hasStatus(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(businessService);
+    }
+
+    @Test
     void getBySlugReturnsBusiness() {
         given(businessService.getPublic("k3f9x2ab-old-name")).willReturn(BUSINESS);
 
