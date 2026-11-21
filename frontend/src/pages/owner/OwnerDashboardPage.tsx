@@ -42,6 +42,12 @@ export function OwnerDashboardPage() {
               >
                 Edit details
               </Link>
+              <Link
+                to={`/businesses/${business.slug}`}
+                className={buttonVariants()}
+              >
+                View public page
+              </Link>
             </div>
           </div>
 
