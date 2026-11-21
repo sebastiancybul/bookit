@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { meQueryKey } from '@/hooks/useMe'
+import { setSessionUser } from '@/hooks/useMe'
 import { login } from '@/services/auth'
 
 export function useLogin() {
@@ -8,7 +8,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: login,
     onSuccess: (user) => {
-      queryClient.setQueryData(meQueryKey, user)
+      setSessionUser(queryClient, user)
     },
   })
 }
