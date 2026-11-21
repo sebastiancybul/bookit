@@ -4,7 +4,10 @@ import { ArrowLeftIcon } from 'lucide-react'
 import { Logo } from '@/components/elements/Logo'
 import { useLogout } from '@/hooks/useLogout'
 
-const menu = [{ to: '/owner', label: 'Overview', end: true }]
+const menu = [
+  { to: '/owner', label: 'Overview', end: true },
+  { to: '/owner/business', label: 'Business', end: false },
+]
 
 export function PanelLayout() {
   const logoutMutation = useLogout()
