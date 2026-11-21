@@ -42,12 +42,19 @@ export function AccountMenu({ user }: AccountMenuProps) {
 
         <DropdownMenuSeparator />
 
-        {isOwner && (
+        {isOwner ? (
           <DropdownMenuLinkItem
             render={<Link to="/owner" />}
             className="px-2.5 py-2"
           >
             Owner panel
+          </DropdownMenuLinkItem>
+        ) : (
+          <DropdownMenuLinkItem
+            render={<Link to="/business/new" />}
+            className="px-2.5 py-2"
+          >
+            Create your business
           </DropdownMenuLinkItem>
         )}
 
