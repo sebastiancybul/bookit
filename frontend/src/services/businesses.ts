@@ -4,9 +4,34 @@ import type { components } from '@/api/schema'
 export type Business = components['schemas']['BusinessResponse']
 export type BusinessRequest = components['schemas']['BusinessRequest']
 export type BusinessCategory = components['schemas']['BusinessCategoryResponse']
+export type BusinessSummary = components['schemas']['BusinessSummaryResponse']
+export type BusinessPage =
+  components['schemas']['PageResponseBusinessSummaryResponse']
+
+export type BusinessSearch = {
+  city?: string
+  category?: string
+  page?: number
+}
 
 export async function listCategories(): Promise<BusinessCategory[]> {
   return unwrap(await client.GET('/api/v1/categories'))
+}
+
+export async function searchBusinesses(
+  search: BusinessSearch,
+): Promise<BusinessPage> {
+  return unwrap(
+    await client.GET('/api/v1/businesses', { params: { query: search } }),
+  )
+}
+
+export async function getBusiness(slug: string): Promise<Business> {
+  return unwrap(
+    await client.GET('/api/v1/businesses/{slug}', {
+      params: { path: { slug } },
+    }),
+  )
 }
 
 export async function getMyBusiness(): Promise<Business> {
