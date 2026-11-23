@@ -3,6 +3,7 @@ package com.bookit.auth.controller;
 import com.bookit.auth.dto.LoginRequest;
 import com.bookit.auth.dto.RegisterRequest;
 import com.bookit.auth.security.AuthCookies;
+import com.bookit.auth.security.CurrentUserId;
 import com.bookit.auth.service.AuthService;
 import com.bookit.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,8 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -55,7 +54,7 @@ public class AuthController {
     }
 
     @GetMapping(path = "/me", version = "1")
-    public UserResponse me(@AuthenticationPrincipal Jwt jwt) {
-        return authService.me(UUID.fromString(jwt.getSubject()));
+    public UserResponse me(@CurrentUserId UUID userId) {
+        return authService.me(userId);
     }
 }
