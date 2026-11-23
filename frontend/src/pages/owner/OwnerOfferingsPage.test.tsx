@@ -3,12 +3,17 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { OwnerOfferingsPage } from '@/pages/owner/OwnerOfferingsPage'
+import { listMyEmployees } from '@/services/employees'
 import {
   createOffering,
   deleteOffering,
   listMyOfferings,
   type Offering,
 } from '@/services/offerings'
+
+vi.mock('@/services/employees', () => ({
+  listMyEmployees: vi.fn(),
+}))
 
 vi.mock('@/services/offerings', () => ({
   listMyOfferings: vi.fn(),
@@ -47,6 +52,41 @@ describe('OwnerOfferingsPage', () => {
     vi.mocked(listMyOfferings).mockReset()
     vi.mocked(createOffering).mockReset()
     vi.mocked(deleteOffering).mockReset()
+    vi.mocked(listMyEmployees).mockReset()
+    vi.mocked(listMyEmployees).mockResolvedValue([])
+  })
+
+  it('shows assigned employees as specialists', async () => {
+    vi.mocked(listMyOfferings).mockResolvedValue([haircut])
+    vi.mocked(listMyEmployees).mockResolvedValue([
+      {
+        id: '0193a1b2-0000-7000-8000-0000000000a1',
+        displayName: 'Anna K.',
+        position: null,
+        offeringIds: [haircut.id],
+        accountEmail: null,
+      },
+      {
+        id: '0193a1b2-0000-7000-8000-0000000000b2',
+        displayName: 'Bartek W.',
+        position: null,
+        offeringIds: [],
+        accountEmail: null,
+      },
+    ])
+    renderPage()
+
+    const row = (await screen.findByText('Haircut')).closest('tr')!
+    expect(await within(row).findByText('Anna K.')).toBeInTheDocument()
+    expect(within(row).queryByText(/Bartek/)).not.toBeInTheDocument()
+  })
+
+  it('shows None when nobody performs the offering', async () => {
+    vi.mocked(listMyOfferings).mockResolvedValue([haircut])
+    renderPage()
+
+    const row = (await screen.findByText('Haircut')).closest('tr')!
+    expect(await within(row).findByText('None')).toBeInTheDocument()
   })
 
   it('lists offerings with formatted duration, price and break', async () => {

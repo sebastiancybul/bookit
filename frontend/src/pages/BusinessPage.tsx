@@ -3,6 +3,7 @@ import { ArrowLeftIcon } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { BusinessMark } from '@/components/elements/BusinessMark'
 import { BusinessOfferings } from '@/components/elements/BusinessOfferings'
+import { BusinessTeam } from '@/components/elements/BusinessTeam'
 import { buttonVariants } from '@/components/ui/button'
 import { useBusiness } from '@/hooks/useBusiness'
 
@@ -88,6 +89,8 @@ export function BusinessPage() {
               )}
             </div>
           </section>
+
+          <BusinessTeam slug={business.slug} />
 
           <div className="flex flex-wrap items-start gap-6">
             <BusinessOfferings slug={business.slug} />

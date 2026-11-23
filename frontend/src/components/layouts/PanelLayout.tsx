@@ -8,6 +8,7 @@ const menu = [
   { to: '/owner', label: 'Overview', end: true },
   { to: '/owner/business', label: 'Business', end: false },
   { to: '/owner/services', label: 'Services', end: false },
+  { to: '/owner/employees', label: 'Employees', end: false },
 ]
 
 export function PanelLayout() {
