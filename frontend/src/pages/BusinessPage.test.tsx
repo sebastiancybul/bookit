@@ -1,13 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api/client'
 import { BusinessPage } from '@/pages/BusinessPage'
 import { getBusiness, type Business } from '@/services/businesses'
+import { listBusinessOfferings } from '@/services/offerings'
 
 vi.mock('@/services/businesses', () => ({
   getBusiness: vi.fn(),
+}))
+
+vi.mock('@/services/offerings', () => ({
+  listBusinessOfferings: vi.fn(),
 }))
 
 const business: Business = {
@@ -52,6 +57,42 @@ function renderBusinessPage(url: string) {
 describe('BusinessPage', () => {
   beforeEach(() => {
     vi.mocked(getBusiness).mockReset()
+    vi.mocked(listBusinessOfferings).mockReset()
+    vi.mocked(listBusinessOfferings).mockResolvedValue([])
+  })
+
+  it('lists the services of the business', async () => {
+    vi.mocked(getBusiness).mockResolvedValue(business)
+    vi.mocked(listBusinessOfferings).mockResolvedValue([
+      {
+        id: '0193a1b2-0000-7000-8000-000000000001',
+        name: 'Beard trim',
+        description: 'Shape and line-up',
+        priceAmount: 5000,
+        currency: 'PLN',
+        durationMinutes: 30,
+      },
+    ])
+    renderBusinessPage('/businesses/k3f9x2ab-barber-shop-krakow')
+
+    const services = await screen.findByRole('region', { name: 'Services' })
+    expect(await within(services).findByText('Beard trim')).toBeInTheDocument()
+    expect(
+      within(services).getByText('30 min · Shape and line-up'),
+    ).toBeInTheDocument()
+    expect(within(services).getByText(/50\szł/)).toBeInTheDocument()
+    expect(listBusinessOfferings).toHaveBeenCalledWith(
+      'k3f9x2ab-barber-shop-krakow',
+    )
+  })
+
+  it('shows a message when the business has no services', async () => {
+    vi.mocked(getBusiness).mockResolvedValue(business)
+    renderBusinessPage('/businesses/k3f9x2ab-barber-shop-krakow')
+
+    expect(
+      await screen.findByText("This business hasn't added any services yet."),
+    ).toBeInTheDocument()
   })
 
   it('shows the business with contact links and cancellation policy', async () => {

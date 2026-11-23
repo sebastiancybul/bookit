@@ -2,6 +2,7 @@ import { Link, Navigate, useParams } from 'react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import { BusinessMark } from '@/components/elements/BusinessMark'
+import { BusinessOfferings } from '@/components/elements/BusinessOfferings'
 import { buttonVariants } from '@/components/ui/button'
 import { useBusiness } from '@/hooks/useBusiness'
 
@@ -88,25 +89,29 @@ export function BusinessPage() {
             </div>
           </section>
 
-          <aside
-            aria-labelledby="cancellation-heading"
-            className="flex max-w-120 flex-col gap-3 rounded-[20px] bg-muted p-6"
-          >
-            <h2 id="cancellation-heading" className="text-base font-bold">
-              Cancellation policy
-            </h2>
-            <p className="text-sm leading-relaxed text-secondary-foreground">
-              {business.freeCancellationHours > 0 ? (
-                <>
-                  Free cancellation up to{' '}
-                  <strong>{business.freeCancellationHours} hours</strong> before
-                  your visit. After that, please call the business.
-                </>
-              ) : (
-                'You can cancel any time before your visit.'
-              )}
-            </p>
-          </aside>
+          <div className="flex flex-wrap items-start gap-6">
+            <BusinessOfferings slug={business.slug} />
+
+            <aside
+              aria-labelledby="cancellation-heading"
+              className="flex flex-[1_1_17.5rem] flex-col gap-3 rounded-[20px] bg-muted p-6"
+            >
+              <h2 id="cancellation-heading" className="text-base font-bold">
+                Cancellation policy
+              </h2>
+              <p className="text-sm leading-relaxed text-secondary-foreground">
+                {business.freeCancellationHours > 0 ? (
+                  <>
+                    Free cancellation up to{' '}
+                    <strong>{business.freeCancellationHours} hours</strong>{' '}
+                    before your visit. After that, please call the business.
+                  </>
+                ) : (
+                  'You can cancel any time before your visit.'
+                )}
+              </p>
+            </aside>
+          </div>
         </>
       )}
     </div>
