@@ -71,6 +71,40 @@ class SecurityConfigTest {
     }
 
     @Test
+    void ownerPutWithAccessTokenCookieRequiresCsrfHeader() {
+        Cookie xsrf = fetchXsrfCookie();
+        Cookie owner = tokenCookie("ROLE_CLIENT", "ROLE_OWNER");
+
+        MvcTestResult withoutHeader = mvc.put().uri("/api/v1/owner/business")
+                .cookie(xsrf, owner)
+                .exchange();
+        MvcTestResult withHeader = mvc.put().uri("/api/v1/owner/business")
+                .cookie(xsrf, owner)
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(withoutHeader, HttpStatus.FORBIDDEN, "Access denied");
+        assertPassedSecurity(withHeader);
+    }
+
+    @Test
+    void clientPostToBusinessCreationWithAccessTokenCookieRequiresCsrfHeader() {
+        Cookie xsrf = fetchXsrfCookie();
+        Cookie client = tokenCookie("ROLE_CLIENT");
+
+        MvcTestResult withoutHeader = mvc.post().uri("/api/v1/owner/business")
+                .cookie(xsrf, client)
+                .exchange();
+        MvcTestResult withHeader = mvc.post().uri("/api/v1/owner/business")
+                .cookie(xsrf, client)
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(withoutHeader, HttpStatus.FORBIDDEN, "Access denied");
+        assertPassedSecurity(withHeader);
+    }
+
+    @Test
     void ownerPassesOwnerPrefix() {
         MvcTestResult result = mvc.get().uri("/api/v1/owner/business")
                 .cookie(tokenCookie("ROLE_CLIENT", "ROLE_OWNER"))
