@@ -212,6 +212,23 @@ class SecurityConfigTest {
         assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
     }
 
+    @Test
+    void publicOfferingsAreReadOnly() {
+        Cookie xsrf = fetchXsrfCookie();
+
+        MvcTestResult result = mvc.post().uri("/api/v1/businesses/abc12345-shop/offerings")
+                .cookie(xsrf, tokenCookie("ROLE_CLIENT", "ROLE_OWNER"))
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @Test
+    void anonymousPassesPublicOfferings() {
+        assertPassedSecurity(mvc.get().uri("/api/v1/businesses/abc12345-shop/offerings").exchange());
+    }
+
     private void assertPassedSecurity(MvcTestResult result) {
         assertThat(result.getResponse().getStatus()).isNotIn(401, 403);
     }
