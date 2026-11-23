@@ -4,6 +4,7 @@ import com.bookit.offering.dto.OfferingRequest;
 import com.bookit.offering.dto.OfferingResponse;
 import com.bookit.offering.dto.PublicOfferingResponse;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public interface OfferingService {
@@ -17,4 +18,6 @@ public interface OfferingService {
     void delete(UUID ownerId, UUID offeringId);
 
     List<PublicOfferingResponse> getPublic(String businessSlug);
+
+    boolean allActiveInBusiness(Set<UUID> offeringIds, UUID businessId);
 }

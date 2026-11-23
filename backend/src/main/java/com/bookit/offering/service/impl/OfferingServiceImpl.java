@@ -10,6 +10,7 @@ import com.bookit.offering.service.OfferingService;
 import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.shared.error.ResourceNotFoundException;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
@@ -82,6 +83,14 @@ public class OfferingServiceImpl implements OfferingService {
         return offeringRepository.findByBusinessIdAndActiveTrueOrderByNameAsc(businessId).stream()
                 .map(PublicOfferingResponse::from)
                 .toList();
+    }
+
+    @Override
+    public boolean allActiveInBusiness(Set<UUID> offeringIds, UUID businessId) {
+        if (offeringIds.isEmpty()) {
+            return true;
+        }
+        return offeringRepository.countByIdInAndBusinessIdAndActiveTrue(offeringIds, businessId) == offeringIds.size();
     }
 
     private Offering findMine(UUID ownerId, UUID offeringId) {

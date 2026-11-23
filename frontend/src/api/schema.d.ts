@@ -36,6 +36,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/owner/business/employees/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateEmployee"];
+        post?: never;
+        delete: operations["deleteEmployee"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/owner/business/employees/{id}/offerings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["assignEmployeeOfferings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/owner/business/offerings": {
         parameters: {
             query?: never;
@@ -46,6 +78,22 @@ export interface paths {
         get: operations["getMyOfferings"];
         put?: never;
         post: operations["createOffering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/owner/business/employees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMyEmployees"];
+        put?: never;
+        post: operations["createEmployee"];
         delete?: never;
         options?: never;
         head?: never;
@@ -180,6 +228,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/businesses/{slug}/employees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBusinessEmployees"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -255,6 +319,20 @@ export interface components {
             /** Format: int32 */
             bufferMinutes: number;
         };
+        EmployeeRequest: {
+            displayName: string;
+            position?: string;
+        };
+        EmployeeResponse: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
+            position: string | null;
+            offeringIds: string[];
+        };
+        EmployeeOfferingsRequest: {
+            offeringIds: string[];
+        };
         RegisterRequest: {
             /** Format: email */
             email: string;
@@ -305,6 +383,13 @@ export interface components {
             currency: string;
             /** Format: int32 */
             durationMinutes: number;
+        };
+        PublicEmployeeResponse: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
+            position: string | null;
+            offeringIds: string[];
         };
     };
     responses: never;
@@ -429,6 +514,78 @@ export interface operations {
             };
         };
     };
+    updateEmployee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmployeeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeResponse"];
+                };
+            };
+        };
+    };
+    deleteEmployee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    assignEmployeeOfferings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmployeeOfferingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeResponse"];
+                };
+            };
+        };
+    };
     getMyOfferings: {
         parameters: {
             query?: never;
@@ -469,6 +626,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OfferingResponse"];
+                };
+            };
+        };
+    };
+    getMyEmployees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeResponse"][];
+                };
+            };
+        };
+    };
+    createEmployee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmployeeRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeResponse"];
                 };
             };
         };
@@ -642,6 +843,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicOfferingResponse"][];
+                };
+            };
+        };
+    };
+    getBusinessEmployees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicEmployeeResponse"][];
                 };
             };
         };

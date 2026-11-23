@@ -43,6 +43,7 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.GET, "/api/v1/businesses"),
             PATHS.matcher(HttpMethod.GET, "/api/v1/businesses/*"),
             PATHS.matcher(HttpMethod.GET, "/api/v1/businesses/*/offerings"),
+            PATHS.matcher(HttpMethod.GET, "/api/v1/businesses/*/employees"),
             PATHS.matcher("/actuator/health"),
             PATHS.matcher("/actuator/info"),
             PATHS.matcher(HttpMethod.GET, "/v3/api-docs/**"),
