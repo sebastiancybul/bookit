@@ -61,6 +61,15 @@ export class ApiError extends Error {
   }
 }
 
+const MAX_RETRIES = 2
+
+export function retryUnlessClientError(failureCount: number, error: Error) {
+  if (error instanceof ApiError && error.status < 500) {
+    return false
+  }
+  return failureCount < MAX_RETRIES
+}
+
 function isProblemDetail(value: unknown): value is ProblemDetail {
   return (
     typeof value === 'object' &&

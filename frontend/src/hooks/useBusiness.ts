@@ -1,8 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ApiError } from '@/api/client'
+import { retryUnlessClientError } from '@/api/client'
 import { getBusiness } from '@/services/businesses'
 
-const MAX_RETRIES = 2
 const FRESH_FOR_MS = 60 * 1000
 
 export const businessesQueryKey = ['businesses'] as const
@@ -24,11 +23,6 @@ export function useBusiness(slug: string) {
       return business
     },
     staleTime: FRESH_FOR_MS,
-    retry: (failureCount, error) => {
-      if (error instanceof ApiError && error.status < 500) {
-        return false
-      }
-      return failureCount < MAX_RETRIES
-    },
+    retry: retryUnlessClientError,
   })
 }

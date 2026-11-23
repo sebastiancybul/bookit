@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { useCategories } from '@/hooks/useCategories'
+import { nativeControlClassName } from '@/lib/styles'
 import type { Business, BusinessRequest } from '@/services/businesses'
 
 const businessSchema = z.object({
@@ -87,9 +88,6 @@ function toRequest(values: BusinessFormValues): BusinessRequest {
     description: values.description || undefined,
   }
 }
-
-const nativeControlClassName =
-  'w-full rounded-lg border border-input bg-transparent px-3.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-[0.9375rem]'
 
 type BusinessFormProps = {
   business?: Business
