@@ -1,6 +1,7 @@
 package com.bookit.offering.repository;
 
 import com.bookit.offering.entity.Offering;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,4 +12,6 @@ public interface OfferingRepository extends JpaRepository<Offering, UUID> {
     List<Offering> findByBusinessIdAndActiveTrueOrderByNameAsc(UUID businessId);
 
     Optional<Offering> findByIdAndBusinessIdAndActiveTrue(UUID id, UUID businessId);
+
+    long countByIdInAndBusinessIdAndActiveTrue(Collection<UUID> ids, UUID businessId);
 }
