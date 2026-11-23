@@ -8,6 +8,9 @@ import com.bookit.auth.config.SecurityConfig;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.servlet.http.Cookie;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -243,17 +246,148 @@ class EmployeeFlowIntegrationTest {
         for (String name : new String[] {"Anna K.", "Bartek W.", "Celina Z."}) {
             assign(owner, createEmployee(owner, name), haircut, beard);
         }
+        for (String employeeId : employeeIds(owner)) {
+            link(owner, employeeId, register());
+        }
         Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         statistics.clear();
 
         assertThat(mvc.get().uri(EMPLOYEES_URL).cookie(owner))
                 .hasStatus(HttpStatus.OK)
                 .bodyJson()
-                .extractingPath("$[*].offeringIds")
-                .asArray()
-                .hasSize(3);
+                .satisfies(json -> {
+                    assertThat(json).extractingPath("$[*].offeringIds").asArray().hasSize(3);
+                    assertThat(json).extractingPath("$[*].accountEmail").asArray().doesNotContainNull();
+                });
 
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(3);
+    }
+
+    @Test
+    void ownerLinksAccountByEmailAndThatUserGetsEmployeeRole() throws Exception {
+        Cookie owner = becomeOwner();
+        String annaId = createEmployee(owner, "Anna K.");
+        String annaEmail = register();
+
+        MvcTestResult linked = link(owner, annaId, annaEmail.toUpperCase());
+
+        assertThat(linked)
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .extractingPath("$.accountEmail")
+                .isEqualTo(annaEmail);
+        assertThat(linked.getResponse().getCookie(SecurityConfig.ACCESS_TOKEN_COOKIE)).isNull();
+        assertThat(rolesOf(annaEmail)).contains("ROLE_EMPLOYEE");
+        assertThat(mvc.get().uri(EMPLOYEES_URL).cookie(owner))
+                .bodyJson()
+                .extractingPath("$[0].accountEmail")
+                .isEqualTo(annaEmail);
+        assertThat(mvc.get().uri("/api/v1/businesses/" + slugOf(owner) + "/employees"))
+                .bodyJson()
+                .doesNotHavePath("$[0].accountEmail");
+
+        assertThat(link(owner, annaId, annaEmail)).hasStatus(HttpStatus.OK);
+    }
+
+    @Test
+    void unknownEmailReturns400OnEmailField() throws Exception {
+        Cookie owner = becomeOwner();
+        String annaId = createEmployee(owner, "Anna K.");
+
+        assertThat(link(owner, annaId, "nobody-" + UUID.randomUUID() + "@test.pl"))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .extractingPath("$.errors[0].field")
+                .isEqualTo("email");
+    }
+
+    @Test
+    void accountLinkedToAnotherEmployeeReturns409() throws Exception {
+        Cookie ownerA = becomeOwner();
+        Cookie ownerB = becomeOwner();
+        String annaEmail = register();
+        link(ownerA, createEmployee(ownerA, "Anna K."), annaEmail);
+
+        assertThat(link(ownerB, createEmployee(ownerB, "Anna K."), annaEmail))
+                .hasStatus(HttpStatus.CONFLICT)
+                .bodyJson()
+                .extractingPath("$.code")
+                .isEqualTo("EMPLOYEE_ACCOUNT_TAKEN");
+        assertThat(link(ownerA, createEmployee(ownerA, "Anna duplicate"), annaEmail))
+                .hasStatus(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void linkingAnotherAccountReplacesPreviousAndRemovesItsRole() throws Exception {
+        Cookie owner = becomeOwner();
+        String employeeId = createEmployee(owner, "Anna K.");
+        String first = register();
+        String second = register();
+        link(owner, employeeId, first);
+
+        assertThat(link(owner, employeeId, second))
+                .bodyJson()
+                .extractingPath("$.accountEmail")
+                .isEqualTo(second);
+        assertThat(rolesOf(first)).doesNotContain("ROLE_EMPLOYEE");
+        assertThat(rolesOf(second)).contains("ROLE_EMPLOYEE");
+    }
+
+    @Test
+    void unlinkAndDeleteRemoveRoleAndFreeTheAccount() throws Exception {
+        Cookie ownerA = becomeOwner();
+        String annaEmail = register();
+        String employeeId = createEmployee(ownerA, "Anna K.");
+        link(ownerA, employeeId, annaEmail);
+
+        assertThat(send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + employeeId + "/account", ownerA, null))
+                .hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(rolesOf(annaEmail)).doesNotContain("ROLE_EMPLOYEE");
+        assertThat(mvc.get().uri(EMPLOYEES_URL).cookie(ownerA))
+                .bodyJson()
+                .extractingPath("$[0].accountEmail")
+                .isNull();
+        assertThat(send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + employeeId + "/account", ownerA, null))
+                .hasStatus(HttpStatus.NO_CONTENT);
+
+        link(ownerA, employeeId, annaEmail);
+        send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + employeeId, ownerA, null);
+
+        assertThat(rolesOf(annaEmail)).doesNotContain("ROLE_EMPLOYEE");
+        Cookie ownerB = becomeOwner();
+        assertThat(link(ownerB, createEmployee(ownerB, "Anna K."), annaEmail)).hasStatus(HttpStatus.OK);
+    }
+
+    @Test
+    void ownerLinkingAndUnlinkingOwnAccountGetsFreshCookie() throws Exception {
+        Cookie owner = becomeOwner();
+        String ownerEmail = JsonPath.read(
+                mvc.get().uri("/api/v1/auth/me").cookie(owner).exchange().getResponse().getContentAsString(), "$.email");
+        String employeeId = createEmployee(owner, "Me");
+
+        Cookie linkedCookie = link(owner, employeeId, ownerEmail).getResponse()
+                .getCookie(SecurityConfig.ACCESS_TOKEN_COOKIE);
+
+        assertThat(rolesInToken(linkedCookie)).contains("ROLE_OWNER", "ROLE_EMPLOYEE");
+
+        Cookie unlinkedCookie = send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + employeeId + "/account", linkedCookie, null)
+                .getResponse()
+                .getCookie(SecurityConfig.ACCESS_TOKEN_COOKIE);
+
+        assertThat(rolesInToken(unlinkedCookie)).contains("ROLE_OWNER").doesNotContain("ROLE_EMPLOYEE");
+    }
+
+    @Test
+    void ownerCannotLinkOrUnlinkAccountOfEmployeeOfAnotherBusiness() throws Exception {
+        Cookie ownerA = becomeOwner();
+        Cookie ownerB = becomeOwner();
+        String employeeOfA = createEmployee(ownerA, "Anna K.");
+        String email = register();
+
+        assertThat(link(ownerB, employeeOfA, email)).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + employeeOfA + "/account", ownerB, null))
+                .hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(rolesOf(email)).doesNotContain("ROLE_EMPLOYEE");
     }
 
     @Test
@@ -267,6 +401,49 @@ class EmployeeFlowIntegrationTest {
                         "UPDATE employees SET user_id = ?::uuid, active = false WHERE id = ?::uuid", userId, annaId))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("ck_employees_inactive_unlinked");
+    }
+
+    private String register() throws Exception {
+        String email = "employee-" + UUID.randomUUID() + "@test.pl";
+        String json = """
+                {"email": "%s", "password": "Testowe123!", "firstName": "Ewa",
+                 "lastName": "Lis", "phone": "+48600123456"}
+                """.formatted(email);
+        assertThat(mvc.post().uri("/api/v1/auth/register")
+                        .cookie(xsrf)
+                        .header("X-XSRF-TOKEN", xsrf.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .hasStatus(HttpStatus.CREATED);
+        return email;
+    }
+
+    private MvcTestResult link(Cookie owner, String employeeId, String email) {
+        return send(HttpMethod.PUT, EMPLOYEES_URL + "/" + employeeId + "/account", owner,
+                "{\"email\": \"%s\"}".formatted(email));
+    }
+
+    private List<String> rolesOf(String email) {
+        return jdbcTemplate.queryForList(
+                "SELECT r.name FROM user_roles ur JOIN roles r ON r.id = ur.role_id"
+                        + " JOIN users u ON u.id = ur.user_id WHERE u.email = ?",
+                String.class, email);
+    }
+
+    private static List<String> rolesInToken(Cookie cookie) {
+        String payload = cookie.getValue().split("\\.")[1];
+        return JsonPath.read(new String(Base64.getUrlDecoder().decode(payload), StandardCharsets.UTF_8), "$.roles");
+    }
+
+    private List<String> employeeIds(Cookie owner) throws Exception {
+        return JsonPath.read(
+                mvc.get().uri(EMPLOYEES_URL).cookie(owner).exchange().getResponse().getContentAsString(), "$[*].id");
+    }
+
+    private String slugOf(Cookie owner) throws Exception {
+        return JsonPath.read(
+                mvc.get().uri("/api/v1/owner/business").cookie(owner).exchange().getResponse().getContentAsString(),
+                "$.slug");
     }
 
     private Cookie becomeOwner() throws Exception {

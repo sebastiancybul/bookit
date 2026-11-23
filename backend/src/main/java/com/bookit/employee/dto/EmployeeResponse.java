@@ -9,13 +9,15 @@ public record EmployeeResponse(
         UUID id,
         String displayName,
         @Schema(types = {"string", "null"}) String position,
-        List<UUID> offeringIds) {
+        List<UUID> offeringIds,
+        @Schema(types = {"string", "null"}) String accountEmail) {
 
-    public static EmployeeResponse from(Employee employee) {
+    public static EmployeeResponse from(Employee employee, String accountEmail) {
         return new EmployeeResponse(
                 employee.getId(),
                 employee.getDisplayName(),
                 employee.getPosition(),
-                employee.getOfferingIds().stream().sorted().toList());
+                employee.getOfferingIds().stream().sorted().toList(),
+                accountEmail);
     }
 }

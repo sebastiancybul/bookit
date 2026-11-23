@@ -17,7 +17,14 @@ public interface EmployeeService {
 
     EmployeeResponse assignOfferings(UUID ownerId, UUID employeeId, Set<UUID> offeringIds);
 
+    AccountChange linkAccount(UUID ownerId, UUID employeeId, String email);
+
+    AccountChange unlinkAccount(UUID ownerId, UUID employeeId);
+
     void delete(UUID ownerId, UUID employeeId);
 
     List<PublicEmployeeResponse> getPublic(String businessSlug);
+
+    record AccountChange(EmployeeResponse employee, boolean ownRolesChanged) {
+    }
 }
