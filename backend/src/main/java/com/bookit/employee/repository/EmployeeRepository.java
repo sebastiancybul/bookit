@@ -14,4 +14,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, UUID> {
 
     @EntityGraph(attributePaths = "offeringIds")
     Optional<Employee> findByIdAndBusinessIdAndActiveTrue(UUID id, UUID businessId);
+
+    boolean existsByUserIdAndIdNot(UUID userId, UUID id);
 }

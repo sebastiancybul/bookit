@@ -13,6 +13,8 @@ public interface AuthService {
 
     UserResponse me(UUID userId);
 
+    String reissueToken(UUID userId);
+
     record LoginResult(UserResponse user, String accessToken) {
     }
 }

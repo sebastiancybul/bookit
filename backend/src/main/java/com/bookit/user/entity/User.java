@@ -64,4 +64,8 @@ public class User extends BaseEntity {
     public void addRole(Role role) {
         roles.add(role);
     }
+
+    public void removeRole(String roleName) {
+        roles.removeIf(role -> role.getName().equals(roleName));
+    }
 }

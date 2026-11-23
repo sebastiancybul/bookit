@@ -11,7 +11,10 @@ import com.bookit.offering.service.OfferingService;
 import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.shared.error.InvalidFieldException;
 import com.bookit.shared.error.ResourceNotFoundException;
+import com.bookit.user.service.UserService;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -24,17 +27,26 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
 
+    private static final String ROLE_EMPLOYEE = "ROLE_EMPLOYEE";
     private static final String DISPLAY_NAME_CONSTRAINT = "uk_employees_business_display_name_active";
+    private static final String USER_CONSTRAINT = "uk_employees_user";
 
     private final EmployeeRepository employeeRepository;
     private final BusinessService businessService;
     private final OfferingService offeringService;
+    private final UserService userService;
 
     @Override
     public List<EmployeeResponse> getMine(UUID ownerId) {
         UUID businessId = businessService.getMyBusinessId(ownerId);
-        return employeeRepository.findByBusinessIdAndActiveTrueOrderByDisplayNameAsc(businessId).stream()
-                .map(EmployeeResponse::from)
+        List<Employee> employees = employeeRepository.findByBusinessIdAndActiveTrueOrderByDisplayNameAsc(businessId);
+        Map<UUID, String> emails = userService.getEmails(employees.stream()
+                .map(Employee::getUserId)
+                .filter(Objects::nonNull)
+                .toList());
+        return employees.stream()
+                .map(employee -> EmployeeResponse.from(
+                        employee, employee.getUserId() == null ? null : emails.get(employee.getUserId())))
                 .toList();
     }
 
@@ -45,9 +57,9 @@ public class EmployeeServiceImpl implements EmployeeService {
         try {
             employeeRepository.saveAndFlush(employee);
         } catch (DataIntegrityViolationException ex) {
-            throw translateDisplayNameConflict(ex);
+            throw translateConflict(ex);
         }
-        return EmployeeResponse.from(employee);
+        return EmployeeResponse.from(employee, null);
     }
 
     @Override
@@ -58,9 +70,9 @@ public class EmployeeServiceImpl implements EmployeeService {
         try {
             employeeRepository.flush();
         } catch (DataIntegrityViolationException ex) {
-            throw translateDisplayNameConflict(ex);
+            throw translateConflict(ex);
         }
-        return EmployeeResponse.from(employee);
+        return toResponse(employee);
     }
 
     @Override
@@ -72,13 +84,57 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new InvalidFieldException("offeringIds", "Unknown offering");
         }
         employee.replaceOfferings(offeringIds);
-        return EmployeeResponse.from(employee);
+        return toResponse(employee);
+    }
+
+    @Override
+    @Transactional
+    public AccountChange linkAccount(UUID ownerId, UUID employeeId, String email) {
+        Employee employee = findMine(businessService.getMyBusinessId(ownerId), employeeId);
+        UUID userId = userService.findIdByEmail(email)
+                .orElseThrow(() -> new InvalidFieldException("email", "No Bookit account with this email"));
+        if (userId.equals(employee.getUserId())) {
+            return new AccountChange(toResponse(employee), false);
+        }
+        if (employeeRepository.existsByUserIdAndIdNot(userId, employeeId)) {
+            throw accountTaken();
+        }
+        UUID previousUserId = employee.getUserId();
+        employee.linkAccount(userId);
+        try {
+            employeeRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            throw translateConflict(ex);
+        }
+        if (previousUserId != null) {
+            userService.removeRole(previousUserId, ROLE_EMPLOYEE);
+        }
+        userService.addRole(userId, ROLE_EMPLOYEE);
+        return new AccountChange(toResponse(employee), ownerId.equals(userId) || ownerId.equals(previousUserId));
+    }
+
+    @Override
+    @Transactional
+    public AccountChange unlinkAccount(UUID ownerId, UUID employeeId) {
+        Employee employee = findMine(businessService.getMyBusinessId(ownerId), employeeId);
+        UUID previousUserId = employee.getUserId();
+        if (previousUserId == null) {
+            return new AccountChange(toResponse(employee), false);
+        }
+        employee.unlinkAccount();
+        userService.removeRole(previousUserId, ROLE_EMPLOYEE);
+        return new AccountChange(EmployeeResponse.from(employee, null), ownerId.equals(previousUserId));
     }
 
     @Override
     @Transactional
     public void delete(UUID ownerId, UUID employeeId) {
-        findMine(businessService.getMyBusinessId(ownerId), employeeId).deactivate();
+        Employee employee = findMine(businessService.getMyBusinessId(ownerId), employeeId);
+        UUID previousUserId = employee.getUserId();
+        employee.deactivate();
+        if (previousUserId != null) {
+            userService.removeRole(previousUserId, ROLE_EMPLOYEE);
+        }
     }
 
     @Override
@@ -94,11 +150,25 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", employeeId));
     }
 
-    private static RuntimeException translateDisplayNameConflict(DataIntegrityViolationException ex) {
-        if (ex.getCause() instanceof ConstraintViolationException cause
-                && DISPLAY_NAME_CONSTRAINT.equals(cause.getConstraintName())) {
-            return new BusinessRuleException("EMPLOYEE_NAME_TAKEN", "An employee with this name already exists");
+    private EmployeeResponse toResponse(Employee employee) {
+        UUID userId = employee.getUserId();
+        String email = userId == null ? null : userService.getEmails(List.of(userId)).get(userId);
+        return EmployeeResponse.from(employee, email);
+    }
+
+    private static RuntimeException translateConflict(DataIntegrityViolationException ex) {
+        if (ex.getCause() instanceof ConstraintViolationException cause) {
+            if (DISPLAY_NAME_CONSTRAINT.equals(cause.getConstraintName())) {
+                return new BusinessRuleException("EMPLOYEE_NAME_TAKEN", "An employee with this name already exists");
+            }
+            if (USER_CONSTRAINT.equals(cause.getConstraintName())) {
+                return accountTaken();
+            }
         }
         return ex;
+    }
+
+    private static BusinessRuleException accountTaken() {
+        return new BusinessRuleException("EMPLOYEE_ACCOUNT_TAKEN", "This account is already linked to an employee");
     }
 }

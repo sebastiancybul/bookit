@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.bookit.auth.config.JwtConfig;
@@ -14,9 +15,11 @@ import com.bookit.auth.controller.CsrfController;
 import com.bookit.auth.security.AuthCookies;
 import com.bookit.auth.security.ProblemDetailSecurityHandler;
 import com.bookit.auth.security.TestTokens;
+import com.bookit.auth.service.AuthService;
 import com.bookit.employee.dto.EmployeeRequest;
 import com.bookit.employee.dto.EmployeeResponse;
 import com.bookit.employee.service.EmployeeService;
+import com.bookit.employee.service.EmployeeService.AccountChange;
 import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.shared.error.InvalidFieldException;
 import com.bookit.shared.error.ResourceNotFoundException;
@@ -50,13 +53,14 @@ class OwnerEmployeeControllerTest {
     private static final UUID OFFERING_B = UUID.randomUUID();
     private static final String BASE_URL = "/api/v1/owner/business/employees";
     private static final String OFFERINGS_URL = BASE_URL + "/" + EMPLOYEE_ID + "/offerings";
+    private static final String ACCOUNT_URL = BASE_URL + "/" + EMPLOYEE_ID + "/account";
 
     private static final String EMPLOYEE_JSON = """
             {"displayName": "Anna K.", "position": "Senior barber"}
             """;
 
     private static final EmployeeResponse EMPLOYEE =
-            new EmployeeResponse(EMPLOYEE_ID, "Anna K.", "Senior barber", List.of());
+            new EmployeeResponse(EMPLOYEE_ID, "Anna K.", "Senior barber", List.of(), null);
 
     @Autowired
     MockMvcTester mvc;
@@ -66,6 +70,9 @@ class OwnerEmployeeControllerTest {
 
     @MockitoBean
     EmployeeService employeeService;
+
+    @MockitoBean
+    AuthService authService;
 
     @MockitoBean
     UserDetailsService userDetailsService;
@@ -95,7 +102,7 @@ class OwnerEmployeeControllerTest {
     @Test
     void getMineReturnsEmployeesOfTokenSubject() {
         given(employeeService.getMine(USER_ID)).willReturn(List.of(
-                new EmployeeResponse(EMPLOYEE_ID, "Anna K.", null, List.of(OFFERING_A))));
+                new EmployeeResponse(EMPLOYEE_ID, "Anna K.", null, List.of(OFFERING_A), "anna@test.pl")));
 
         assertThat(mvc.get().uri(BASE_URL).cookie(ownerToken()))
                 .hasStatus(HttpStatus.OK)
@@ -104,6 +111,7 @@ class OwnerEmployeeControllerTest {
                     assertThat(json).extractingPath("$[0].displayName").isEqualTo("Anna K.");
                     assertThat(json).extractingPath("$[0].position").isNull();
                     assertThat(json).extractingPath("$[0].offeringIds[0]").isEqualTo(OFFERING_A.toString());
+                    assertThat(json).extractingPath("$[0].accountEmail").isEqualTo("anna@test.pl");
                 });
     }
 
@@ -188,7 +196,7 @@ class OwnerEmployeeControllerTest {
     @Test
     void assignOfferingsPassesDeduplicatedSetToService() {
         given(employeeService.assignOfferings(eq(USER_ID), eq(EMPLOYEE_ID), any()))
-                .willReturn(new EmployeeResponse(EMPLOYEE_ID, "Anna K.", null, List.of(OFFERING_A, OFFERING_B)));
+                .willReturn(new EmployeeResponse(EMPLOYEE_ID, "Anna K.", null, List.of(OFFERING_A, OFFERING_B), null));
         String json = """
                 {"offeringIds": ["%s", "%s", "%s"]}
                 """.formatted(OFFERING_A, OFFERING_B, OFFERING_A);
@@ -258,6 +266,89 @@ class OwnerEmployeeControllerTest {
                 .bodyJson()
                 .extractingPath("$.errors[0].field")
                 .isEqualTo("offeringIds");
+    }
+
+    @Test
+    void linkAccountPassesEmailAndDoesNotTouchOwnCookieForAnotherUser() {
+        EmployeeResponse linked = new EmployeeResponse(EMPLOYEE_ID, "Anna K.", null, List.of(), "anna@test.pl");
+        given(employeeService.linkAccount(USER_ID, EMPLOYEE_ID, "anna@test.pl"))
+                .willReturn(new AccountChange(linked, false));
+
+        MvcTestResult result = send(HttpMethod.PUT, ACCOUNT_URL, "{\"email\": \"anna@test.pl\"}");
+
+        assertThat(result)
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .extractingPath("$.accountEmail")
+                .isEqualTo("anna@test.pl");
+        assertThat(result.getResponse().getCookie(SecurityConfig.ACCESS_TOKEN_COOKIE)).isNull();
+        then(authService).should(never()).reissueToken(any());
+    }
+
+    @Test
+    void linkingOwnAccountReissuesOwnCookie() {
+        given(employeeService.linkAccount(any(), any(), any())).willReturn(new AccountChange(EMPLOYEE, true));
+        given(authService.reissueToken(USER_ID)).willReturn("new.jwt.value");
+
+        MvcTestResult result = send(HttpMethod.PUT, ACCOUNT_URL, "{\"email\": \"owner@test.pl\"}");
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result.getResponse().getCookie(SecurityConfig.ACCESS_TOKEN_COOKIE).getValue())
+                .isEqualTo("new.jwt.value");
+    }
+
+    @Test
+    void linkWithInvalidEmailReturns400WithoutCallingService() {
+        assertThat(send(HttpMethod.PUT, ACCOUNT_URL, "{\"email\": \"not-an-email\"}"))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .extractingPath("$.errors[0].field")
+                .isEqualTo("email");
+        assertThat(send(HttpMethod.PUT, ACCOUNT_URL, "{}")).hasStatus(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(employeeService);
+    }
+
+    @Test
+    void linkUnknownEmailReturns400OnField() {
+        given(employeeService.linkAccount(any(), any(), any()))
+                .willThrow(new InvalidFieldException("email", "No Bookit account with this email"));
+
+        assertThat(send(HttpMethod.PUT, ACCOUNT_URL, "{\"email\": \"ghost@test.pl\"}"))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .extractingPath("$.errors[0].field")
+                .isEqualTo("email");
+    }
+
+    @Test
+    void linkAccountTakenReturns409WithCode() {
+        given(employeeService.linkAccount(any(), any(), any()))
+                .willThrow(new BusinessRuleException("EMPLOYEE_ACCOUNT_TAKEN", "This account is already linked"));
+
+        assertThat(send(HttpMethod.PUT, ACCOUNT_URL, "{\"email\": \"anna@test.pl\"}"))
+                .hasStatus(HttpStatus.CONFLICT)
+                .bodyJson()
+                .extractingPath("$.code")
+                .isEqualTo("EMPLOYEE_ACCOUNT_TAKEN");
+    }
+
+    @Test
+    void unlinkReturns204AndReissuesCookieOnlyForOwnAccount() {
+        given(employeeService.unlinkAccount(USER_ID, EMPLOYEE_ID)).willReturn(new AccountChange(EMPLOYEE, false));
+
+        MvcTestResult other = send(HttpMethod.DELETE, ACCOUNT_URL, null);
+
+        assertThat(other).hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(other.getResponse().getCookie(SecurityConfig.ACCESS_TOKEN_COOKIE)).isNull();
+
+        given(employeeService.unlinkAccount(USER_ID, EMPLOYEE_ID)).willReturn(new AccountChange(EMPLOYEE, true));
+        given(authService.reissueToken(USER_ID)).willReturn("new.jwt.value");
+
+        MvcTestResult own = send(HttpMethod.DELETE, ACCOUNT_URL, null);
+
+        assertThat(own).hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(own.getResponse().getCookie(SecurityConfig.ACCESS_TOKEN_COOKIE).getValue())
+                .isEqualTo("new.jwt.value");
     }
 
     @Test

@@ -72,6 +72,13 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
     }
 
+    @Override
+    public String reissueToken(UUID userId) {
+        return userRepository.findById(userId)
+                .map(jwtService::issueToken)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+    }
+
     private static BusinessRuleException emailTaken() {
         return new BusinessRuleException("EMAIL_TAKEN", "An account with this email already exists");
     }
