@@ -71,6 +71,40 @@ class SecurityConfigTest {
     }
 
     @Test
+    void ownerPutWithAccessTokenCookieRequiresCsrfHeader() {
+        Cookie xsrf = fetchXsrfCookie();
+        Cookie owner = tokenCookie("ROLE_CLIENT", "ROLE_OWNER");
+
+        MvcTestResult withoutHeader = mvc.put().uri("/api/v1/owner/business")
+                .cookie(xsrf, owner)
+                .exchange();
+        MvcTestResult withHeader = mvc.put().uri("/api/v1/owner/business")
+                .cookie(xsrf, owner)
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(withoutHeader, HttpStatus.FORBIDDEN, "Access denied");
+        assertPassedSecurity(withHeader);
+    }
+
+    @Test
+    void clientPostToBusinessCreationWithAccessTokenCookieRequiresCsrfHeader() {
+        Cookie xsrf = fetchXsrfCookie();
+        Cookie client = tokenCookie("ROLE_CLIENT");
+
+        MvcTestResult withoutHeader = mvc.post().uri("/api/v1/owner/business")
+                .cookie(xsrf, client)
+                .exchange();
+        MvcTestResult withHeader = mvc.post().uri("/api/v1/owner/business")
+                .cookie(xsrf, client)
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(withoutHeader, HttpStatus.FORBIDDEN, "Access denied");
+        assertPassedSecurity(withHeader);
+    }
+
+    @Test
     void ownerPassesOwnerPrefix() {
         MvcTestResult result = mvc.get().uri("/api/v1/owner/business")
                 .cookie(tokenCookie("ROLE_CLIENT", "ROLE_OWNER"))
@@ -176,6 +210,23 @@ class SecurityConfigTest {
                 .exchange();
 
         assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @Test
+    void publicOfferingsAreReadOnly() {
+        Cookie xsrf = fetchXsrfCookie();
+
+        MvcTestResult result = mvc.post().uri("/api/v1/businesses/abc12345-shop/offerings")
+                .cookie(xsrf, tokenCookie("ROLE_CLIENT", "ROLE_OWNER"))
+                .header("X-XSRF-TOKEN", xsrf.getValue())
+                .exchange();
+
+        assertProblem(result, HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @Test
+    void anonymousPassesPublicOfferings() {
+        assertPassedSecurity(mvc.get().uri("/api/v1/businesses/abc12345-shop/offerings").exchange());
     }
 
     private void assertPassedSecurity(MvcTestResult result) {

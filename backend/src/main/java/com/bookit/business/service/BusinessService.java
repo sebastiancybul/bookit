@@ -14,6 +14,8 @@ public interface BusinessService {
 
     BusinessResponse getMine(UUID ownerId);
 
+    UUID getMyBusinessId(UUID ownerId);
+
     BusinessResponse updateMine(UUID ownerId, BusinessRequest request);
 
     List<BusinessCategoryResponse> getCategories();
@@ -21,6 +23,8 @@ public interface BusinessService {
     PageResponse<BusinessSummaryResponse> searchPublic(String city, String categoryCode, int page, int size);
 
     BusinessResponse getPublic(String slug);
+
+    UUID getPublicBusinessId(String slug);
 
     record CreateResult(BusinessResponse business, String accessToken) {
     }

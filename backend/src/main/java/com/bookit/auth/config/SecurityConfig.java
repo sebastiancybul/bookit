@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -19,6 +20,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -40,6 +42,7 @@ public class SecurityConfig {
             PATHS.matcher(HttpMethod.GET, "/api/v1/categories"),
             PATHS.matcher(HttpMethod.GET, "/api/v1/businesses"),
             PATHS.matcher(HttpMethod.GET, "/api/v1/businesses/*"),
+            PATHS.matcher(HttpMethod.GET, "/api/v1/businesses/*/offerings"),
             PATHS.matcher("/actuator/health"),
             PATHS.matcher("/actuator/info"),
             PATHS.matcher(HttpMethod.GET, "/v3/api-docs/**"),
@@ -52,7 +55,8 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf
                         .spa()
-                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy()))
+                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
+                        .withObjectPostProcessor(requireCsrfForCookieTokens()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
@@ -82,6 +86,16 @@ public class SecurityConfig {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder);
         return new ProviderManager(provider);
+    }
+
+    private static ObjectPostProcessor<CsrfFilter> requireCsrfForCookieTokens() {
+        return new ObjectPostProcessor<>() {
+            @Override
+            public <O extends CsrfFilter> O postProcess(O filter) {
+                filter.setRequireCsrfProtectionMatcher(CsrfFilter.DEFAULT_CSRF_MATCHER);
+                return filter;
+            }
+        };
     }
 
     private BearerTokenResolver cookieTokenResolver() {

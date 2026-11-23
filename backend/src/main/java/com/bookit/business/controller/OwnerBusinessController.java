@@ -1,6 +1,7 @@
 package com.bookit.business.controller;
 
 import com.bookit.auth.security.AuthCookies;
+import com.bookit.auth.security.CurrentUserId;
 import com.bookit.business.dto.BusinessRequest;
 import com.bookit.business.dto.BusinessResponse;
 import com.bookit.business.service.BusinessService;
@@ -11,8 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -33,24 +32,20 @@ public class OwnerBusinessController {
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping(version = "1")
     public ResponseEntity<BusinessResponse> createBusiness(
-            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BusinessRequest request) {
-        BusinessService.CreateResult result = businessService.create(userId(jwt), request);
+            @CurrentUserId UUID userId, @Valid @RequestBody BusinessRequest request) {
+        BusinessService.CreateResult result = businessService.create(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header(HttpHeaders.SET_COOKIE, authCookies.accessToken(result.accessToken()).toString())
                 .body(result.business());
     }
 
     @GetMapping(version = "1")
-    public BusinessResponse getMyBusiness(@AuthenticationPrincipal Jwt jwt) {
-        return businessService.getMine(userId(jwt));
+    public BusinessResponse getMyBusiness(@CurrentUserId UUID userId) {
+        return businessService.getMine(userId);
     }
 
     @PutMapping(version = "1")
-    public BusinessResponse updateMyBusiness(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BusinessRequest request) {
-        return businessService.updateMine(userId(jwt), request);
-    }
-
-    private static UUID userId(Jwt jwt) {
-        return UUID.fromString(jwt.getSubject());
+    public BusinessResponse updateMyBusiness(@CurrentUserId UUID userId, @Valid @RequestBody BusinessRequest request) {
+        return businessService.updateMine(userId, request);
     }
 }

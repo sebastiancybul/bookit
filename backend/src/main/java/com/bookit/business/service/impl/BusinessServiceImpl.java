@@ -85,6 +85,11 @@ public class BusinessServiceImpl implements BusinessService {
     }
 
     @Override
+    public UUID getMyBusinessId(UUID ownerId) {
+        return findMine(ownerId).getId();
+    }
+
+    @Override
     @Transactional
     public BusinessResponse updateMine(UUID ownerId, BusinessRequest request) {
         Business business = findMine(ownerId);
@@ -123,9 +128,17 @@ public class BusinessServiceImpl implements BusinessService {
 
     @Override
     public BusinessResponse getPublic(String slug) {
+        return BusinessResponse.from(findPublic(slug));
+    }
+
+    @Override
+    public UUID getPublicBusinessId(String slug) {
+        return findPublic(slug).getId();
+    }
+
+    private Business findPublic(String slug) {
         String publicId = slug.split("-", 2)[0];
         return businessRepository.findByPublicIdAndActiveTrue(publicId)
-                .map(BusinessResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Business", slug));
     }
 

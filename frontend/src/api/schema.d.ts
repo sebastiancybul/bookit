@@ -20,6 +20,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/owner/business/offerings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateOffering"];
+        post?: never;
+        delete: operations["deleteOffering"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/owner/business/offerings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMyOfferings"];
+        put?: never;
+        post: operations["createOffering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/register": {
         parameters: {
             query?: never;
@@ -132,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/businesses/{slug}/offerings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBusinessOfferings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -184,6 +232,29 @@ export interface components {
             /** Format: int32 */
             slotIntervalMinutes: number;
         };
+        OfferingRequest: {
+            name: string;
+            description?: string;
+            /** Format: int64 */
+            priceAmount: number;
+            /** Format: int32 */
+            durationMinutes: number;
+            /** Format: int32 */
+            bufferMinutes: number;
+        };
+        OfferingResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: string | null;
+            /** Format: int64 */
+            priceAmount: number;
+            currency: string;
+            /** Format: int32 */
+            durationMinutes: number;
+            /** Format: int32 */
+            bufferMinutes: number;
+        };
         RegisterRequest: {
             /** Format: email */
             email: string;
@@ -223,6 +294,17 @@ export interface components {
             totalElements: number;
             /** Format: int32 */
             totalPages: number;
+        };
+        PublicOfferingResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: string | null;
+            /** Format: int64 */
+            priceAmount: number;
+            currency: string;
+            /** Format: int32 */
+            durationMinutes: number;
         };
     };
     responses: never;
@@ -297,6 +379,96 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BusinessResponse"];
+                };
+            };
+        };
+    };
+    updateOffering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferingRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferingResponse"];
+                };
+            };
+        };
+    };
+    deleteOffering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getMyOfferings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferingResponse"][];
+                };
+            };
+        };
+    };
+    createOffering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfferingRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferingResponse"];
                 };
             };
         };
@@ -448,6 +620,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BusinessResponse"];
+                };
+            };
+        };
+    };
+    getBusinessOfferings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicOfferingResponse"][];
                 };
             };
         };
