@@ -10,6 +10,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { OwnerBusinessPage } from '@/pages/owner/OwnerBusinessPage'
 import { OwnerDashboardPage } from '@/pages/owner/OwnerDashboardPage'
+import { OwnerEmployeesPage } from '@/pages/owner/OwnerEmployeesPage'
 import { OwnerOfferingsPage } from '@/pages/owner/OwnerOfferingsPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { ProtectedRoute } from '@/routes/ProtectedRoute'
@@ -48,6 +49,7 @@ const router = createBrowserRouter([
               { index: true, Component: OwnerDashboardPage },
               { path: 'business', Component: OwnerBusinessPage },
               { path: 'services', Component: OwnerOfferingsPage },
+              { path: 'employees', Component: OwnerEmployeesPage },
             ],
           },
         ],

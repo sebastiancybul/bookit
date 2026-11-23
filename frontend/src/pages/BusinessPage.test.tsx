@@ -5,10 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api/client'
 import { BusinessPage } from '@/pages/BusinessPage'
 import { getBusiness, type Business } from '@/services/businesses'
+import { listBusinessEmployees } from '@/services/employees'
 import { listBusinessOfferings } from '@/services/offerings'
 
 vi.mock('@/services/businesses', () => ({
   getBusiness: vi.fn(),
+}))
+
+vi.mock('@/services/employees', () => ({
+  listBusinessEmployees: vi.fn(),
 }))
 
 vi.mock('@/services/offerings', () => ({
@@ -59,6 +64,60 @@ describe('BusinessPage', () => {
     vi.mocked(getBusiness).mockReset()
     vi.mocked(listBusinessOfferings).mockReset()
     vi.mocked(listBusinessOfferings).mockResolvedValue([])
+    vi.mocked(listBusinessEmployees).mockReset()
+    vi.mocked(listBusinessEmployees).mockResolvedValue([])
+  })
+
+  it('shows the team with the services each person performs', async () => {
+    const haircut = {
+      id: '0193a1b2-0000-7000-8000-000000000001',
+      name: 'Haircut',
+      description: null,
+      priceAmount: 8000,
+      currency: 'PLN',
+      durationMinutes: 45,
+    }
+    const beard = {
+      ...haircut,
+      id: '0193a1b2-0000-7000-8000-000000000002',
+      name: 'Beard trim',
+    }
+    vi.mocked(getBusiness).mockResolvedValue(business)
+    vi.mocked(listBusinessOfferings).mockResolvedValue([haircut, beard])
+    vi.mocked(listBusinessEmployees).mockResolvedValue([
+      {
+        id: '0193a1b2-0000-7000-8000-0000000000a1',
+        displayName: 'Anna Kowalska',
+        position: 'Senior barber',
+        offeringIds: [haircut.id, beard.id],
+      },
+      {
+        id: '0193a1b2-0000-7000-8000-0000000000b2',
+        displayName: 'Bartek Wiśniewski',
+        position: null,
+        offeringIds: [beard.id],
+      },
+    ])
+    renderBusinessPage('/businesses/k3f9x2ab-barber-shop-krakow')
+
+    const team = await screen.findByRole('region', { name: 'Team' })
+    expect(within(team).getByText('2 specialists')).toBeInTheDocument()
+    const anna = within(team).getByText('Anna Kowalska').closest('li')!
+    expect(within(anna).getByText('Senior barber')).toBeInTheDocument()
+    expect(within(anna).getByText('All services')).toBeInTheDocument()
+    const bartek = within(team).getByText('Bartek Wiśniewski').closest('li')!
+    expect(within(bartek).getByText('Beard trim')).toBeInTheDocument()
+  })
+
+  it('hides the team section when the business has no employees', async () => {
+    vi.mocked(getBusiness).mockResolvedValue(business)
+    renderBusinessPage('/businesses/k3f9x2ab-barber-shop-krakow')
+
+    await screen.findByRole('heading', { name: 'Barber Shop' })
+    await waitFor(() => expect(listBusinessEmployees).toHaveBeenCalled())
+    expect(
+      screen.queryByRole('region', { name: 'Team' }),
+    ).not.toBeInTheDocument()
   })
 
   it('lists the services of the business', async () => {

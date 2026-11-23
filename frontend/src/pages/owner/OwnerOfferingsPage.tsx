@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { PlusIcon } from 'lucide-react'
 import { OfferingForm } from '@/components/elements/OfferingForm'
+import { PersonAvatar } from '@/components/elements/PersonAvatar'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +22,11 @@ import {
 } from '@/components/ui/dialog'
 import { useCreateOffering } from '@/hooks/useCreateOffering'
 import { useDeleteOffering } from '@/hooks/useDeleteOffering'
+import { useMyEmployees } from '@/hooks/useMyEmployees'
 import { useMyOfferings } from '@/hooks/useMyOfferings'
 import { useUpdateOffering } from '@/hooks/useUpdateOffering'
 import { formatDuration, formatPrice } from '@/lib/format'
+import type { Employee } from '@/services/employees'
 import type { Offering, OfferingRequest } from '@/services/offerings'
 
 type EditorState =
@@ -37,6 +40,7 @@ type EditorState =
 
 export function OwnerOfferingsPage() {
   const { data: offerings, isPending, isError } = useMyOfferings()
+  const { data: employees = [] } = useMyEmployees()
   const createMutation = useCreateOffering()
   const updateMutation = useUpdateOffering()
   const deleteMutation = useDeleteOffering()
@@ -73,7 +77,9 @@ export function OwnerOfferingsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-4xl">Services</h1>
-          <p className="text-muted-foreground">What clients can book.</p>
+          <p className="text-muted-foreground">
+            What clients can book. Assign specialists in Employees.
+          </p>
         </div>
         <Button
           size="lg"
@@ -107,7 +113,7 @@ export function OwnerOfferingsPage() {
 
       {offerings && offerings.length > 0 && (
         <div className="overflow-x-auto rounded-[20px] border border-border bg-card">
-          <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
+          <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-border">
                 <th scope="col" className="px-5 py-4 font-semibold">
@@ -118,6 +124,9 @@ export function OwnerOfferingsPage() {
                 </th>
                 <th scope="col" className="px-5 py-4 font-semibold">
                   Price
+                </th>
+                <th scope="col" className="px-5 py-4 font-semibold">
+                  Specialists
                 </th>
                 <th scope="col" className="px-5 py-4">
                   <span className="sr-only">Actions</span>
@@ -143,6 +152,13 @@ export function OwnerOfferingsPage() {
                   </td>
                   <td className="px-5 py-4">
                     {formatPrice(offering.priceAmount, offering.currency)}
+                  </td>
+                  <td className="px-5 py-4">
+                    <Specialists
+                      people={employees.filter((employee) =>
+                        employee.offeringIds.includes(offering.id),
+                      )}
+                    />
                   </td>
                   <td className="px-5 py-4 text-right whitespace-nowrap">
                     <Button
@@ -223,5 +239,34 @@ export function OwnerOfferingsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+type SpecialistsProps = {
+  people: Employee[]
+}
+
+function Specialists({ people }: SpecialistsProps) {
+  if (people.length === 0) {
+    return <span className="text-muted-foreground">None</span>
+  }
+  return (
+    <span className="flex">
+      <span className="sr-only">
+        {people.map((person) => person.displayName).join(', ')}
+      </span>
+      {people.map((person, index) => (
+        <span key={person.id} title={person.displayName}>
+          <PersonAvatar
+            name={person.displayName}
+            seed={person.id}
+            size="sm"
+            className={
+              index === 0 ? 'ring-2 ring-card' : '-ml-2 ring-2 ring-card'
+            }
+          />
+        </span>
+      ))}
+    </span>
   )
 }
