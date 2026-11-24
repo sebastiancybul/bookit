@@ -3,6 +3,7 @@ import { PlusIcon } from 'lucide-react'
 import { EmployeeAccountForm } from '@/components/elements/EmployeeAccountForm'
 import { EmployeeForm } from '@/components/elements/EmployeeForm'
 import { EmployeeOfferingsForm } from '@/components/elements/EmployeeOfferingsForm'
+import { EmployeeScheduleEditor } from '@/components/elements/EmployeeScheduleEditor'
 import { PersonAvatar } from '@/components/elements/PersonAvatar'
 import {
   AlertDialog,
@@ -48,12 +49,17 @@ type DialogState =
       kind: 'account'
       employee: Employee
     }
+  | {
+      kind: 'schedule'
+      employee: Employee
+    }
 
 const dialogTitles: Record<DialogState['kind'], string> = {
   create: 'Add employee',
   edit: 'Edit employee',
   offerings: 'Services',
   account: 'Bookit account',
+  schedule: 'Working hours',
 }
 
 const dialogDescriptions: Record<DialogState['kind'], string> = {
@@ -61,6 +67,8 @@ const dialogDescriptions: Record<DialogState['kind'], string> = {
   edit: 'Clients see the name and position when they book.',
   offerings: 'Choose what this person can be booked for.',
   account: 'A linked account lets this person see their own appointments.',
+  schedule:
+    'Clients can book this person only within these hours. Existing appointments stay as they are.',
 }
 
 export function OwnerEmployeesPage() {
@@ -73,9 +81,22 @@ export function OwnerEmployeesPage() {
   const unlinkMutation = useUnlinkEmployeeAccount()
   const deleteMutation = useDeleteEmployee()
   const [dialog, setDialog] = useState<DialogState | null>(null)
+  const [wideDialog, setWideDialog] = useState(false)
   const [deleting, setDeleting] = useState<Employee | null>(null)
 
+  const openDialog = (next: DialogState) => {
+    setWideDialog(next.kind === 'schedule')
+    setDialog(next)
+  }
+
   const closeDialog = () => setDialog(null)
+
+  const closeScheduleOf = (employee: Employee) =>
+    setDialog((current) =>
+      current?.kind === 'schedule' && current.employee.id === employee.id
+        ? null
+        : current,
+    )
 
   const offeringNames = (employee: Employee) =>
     offerings
@@ -132,7 +153,7 @@ export function OwnerEmployeesPage() {
         <Button
           size="lg"
           className="self-start sm:self-auto"
-          onClick={() => setDialog({ kind: 'create' })}
+          onClick={() => openDialog({ kind: 'create' })}
         >
           <PlusIcon aria-hidden="true" />
           Add employee
@@ -162,7 +183,7 @@ export function OwnerEmployeesPage() {
 
       {employees && employees.length > 0 && (
         <div className="overflow-x-auto rounded-[20px] border border-border bg-card">
-          <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
+          <table className="w-full min-w-[52rem] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-border">
                 <th scope="col" className="px-5 py-4 font-semibold">
@@ -226,7 +247,7 @@ export function OwnerEmployeesPage() {
                         variant="outline"
                         size="sm"
                         aria-label={`Edit ${employee.displayName}`}
-                        onClick={() => setDialog({ kind: 'edit', employee })}
+                        onClick={() => openDialog({ kind: 'edit', employee })}
                       >
                         Edit
                       </Button>
@@ -236,7 +257,7 @@ export function OwnerEmployeesPage() {
                         className="ml-1.5"
                         aria-label={`Services of ${employee.displayName}`}
                         onClick={() =>
-                          setDialog({ kind: 'offerings', employee })
+                          openDialog({ kind: 'offerings', employee })
                         }
                       >
                         Services
@@ -245,8 +266,21 @@ export function OwnerEmployeesPage() {
                         variant="outline"
                         size="sm"
                         className="ml-1.5"
+                        aria-label={`Working hours of ${employee.displayName}`}
+                        onClick={() =>
+                          openDialog({ kind: 'schedule', employee })
+                        }
+                      >
+                        Hours
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-1.5"
                         aria-label={`Account of ${employee.displayName}`}
-                        onClick={() => setDialog({ kind: 'account', employee })}
+                        onClick={() =>
+                          openDialog({ kind: 'account', employee })
+                        }
                       >
                         Account
                       </Button>
@@ -272,7 +306,13 @@ export function OwnerEmployeesPage() {
         open={dialog !== null}
         onOpenChange={(open) => !open && closeDialog()}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          className={
+            wideDialog
+              ? 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl'
+              : 'sm:max-w-lg'
+          }
+        >
           {dialog && (
             <>
               <DialogHeader>
@@ -305,6 +345,14 @@ export function OwnerEmployeesPage() {
                   onSubmit={(offeringIds) =>
                     saveOfferings(dialog.employee, offeringIds)
                   }
+                  onCancel={closeDialog}
+                />
+              )}
+              {dialog.kind === 'schedule' && (
+                <EmployeeScheduleEditor
+                  key={dialog.employee.id}
+                  employee={dialog.employee}
+                  onSaved={() => closeScheduleOf(dialog.employee)}
                   onCancel={closeDialog}
                 />
               )}
