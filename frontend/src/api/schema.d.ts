@@ -84,6 +84,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/owner/business/employees/{employeeId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getWorkSchedule"];
+        put: operations["replaceWorkSchedule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/owner/business/offerings": {
         parameters: {
             query?: never;
@@ -353,6 +369,24 @@ export interface components {
         EmployeeAccountRequest: {
             /** Format: email */
             email: string;
+        };
+        WorkScheduleRequest: {
+            intervals: components["schemas"]["WorkingHoursIntervalDto"][];
+        };
+        WorkingHoursIntervalDto: {
+            /**
+             * Format: int32
+             * @description ISO day of week, Monday = 1
+             * @example 1
+             */
+            dayOfWeek: number;
+            /** @example 09:00 */
+            startTime: string;
+            /** @example 17:00 */
+            endTime: string;
+        };
+        WorkScheduleResponse: {
+            intervals: components["schemas"]["WorkingHoursIntervalDto"][];
         };
         RegisterRequest: {
             /** Format: email */
@@ -650,6 +684,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getWorkSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                employeeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkScheduleResponse"];
+                };
+            };
+        };
+    };
+    replaceWorkSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                employeeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkScheduleResponse"];
+                };
             };
         };
     };

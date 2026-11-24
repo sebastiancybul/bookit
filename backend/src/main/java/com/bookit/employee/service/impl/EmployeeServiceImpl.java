@@ -145,6 +145,14 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .toList();
     }
 
+    @Override
+    public void requireMine(UUID ownerId, UUID employeeId) {
+        UUID businessId = businessService.getMyBusinessId(ownerId);
+        if (!employeeRepository.existsByIdAndBusinessIdAndActiveTrue(employeeId, businessId)) {
+            throw new ResourceNotFoundException("Employee", employeeId);
+        }
+    }
+
     private Employee findMine(UUID businessId, UUID employeeId) {
         return employeeRepository.findByIdAndBusinessIdAndActiveTrue(employeeId, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", employeeId));

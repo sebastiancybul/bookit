@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -42,6 +43,16 @@ class GlobalExceptionHandlerTest {
                 .bodyJson()
                 .extractingPath("$.code")
                 .isEqualTo("SLOT_TAKEN");
+    }
+
+    @Test
+    void optimisticLockingFailureReturns409WithConcurrentUpdateCode() {
+        assertThat(mvc.get().uri("/api/v1/test/optimistic-locking"))
+                .hasStatus(HttpStatus.CONFLICT)
+                .hasContentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .bodyJson()
+                .extractingPath("$.code")
+                .isEqualTo("CONCURRENT_UPDATE");
     }
 
     @Test
@@ -89,6 +100,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/business-rule")
         void businessRule() {
             throw new BusinessRuleException("SLOT_TAKEN", "This time slot is no longer available");
+        }
+
+        @GetMapping("/test/optimistic-locking")
+        void optimisticLocking() {
+            throw new OptimisticLockingFailureException("Row was updated by another transaction");
         }
 
         @PostMapping("/test/validation")
