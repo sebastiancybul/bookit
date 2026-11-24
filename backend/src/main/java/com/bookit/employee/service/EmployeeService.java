@@ -25,6 +25,8 @@ public interface EmployeeService {
 
     List<PublicEmployeeResponse> getPublic(String businessSlug);
 
+    void requireMine(UUID ownerId, UUID employeeId);
+
     record AccountChange(EmployeeResponse employee, boolean ownRolesChanged) {
     }
 }
