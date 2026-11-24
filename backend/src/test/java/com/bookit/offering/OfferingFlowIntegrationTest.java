@@ -87,6 +87,29 @@ class OfferingFlowIntegrationTest {
     }
 
     @Test
+    void auditColumnsHoldOwnerIdForOfferingAndAnonymousForRegisteredUser() throws Exception {
+        Cookie owner = becomeOwner();
+        String ownerId = userIdOf(owner);
+        String haircutId = createOffering(owner, "Haircut");
+
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT created_by, updated_by FROM offerings WHERE id = ?::uuid", haircutId))
+                .containsEntry("created_by", ownerId)
+                .containsEntry("updated_by", ownerId);
+
+        assertThat(send(HttpMethod.PUT, OFFERINGS_URL + "/" + haircutId, owner,
+                        offeringJson("Haircut deluxe", 9000, 45, 15)))
+                .hasStatus(HttpStatus.OK);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT updated_by FROM offerings WHERE id = ?::uuid", String.class, haircutId))
+                .isEqualTo(ownerId);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT created_by FROM users WHERE id = ?::uuid", String.class, ownerId))
+                .isEqualTo("anonymous");
+    }
+
+    @Test
     void ownerCannotSeeUpdateOrDeleteOfferingOfAnotherBusiness() throws Exception {
         Cookie ownerA = becomeOwner();
         Cookie ownerB = becomeOwner();
@@ -190,10 +213,13 @@ class OfferingFlowIntegrationTest {
     }
 
     private String businessIdOf(Cookie owner) throws Exception {
-        String userId = JsonPath.read(
-                mvc.get().uri("/api/v1/auth/me").cookie(owner).exchange().getResponse().getContentAsString(), "$.id");
         return jdbcTemplate.queryForObject(
-                "SELECT id::text FROM businesses WHERE owner_id = ?::uuid", String.class, userId);
+                "SELECT id::text FROM businesses WHERE owner_id = ?::uuid", String.class, userIdOf(owner));
+    }
+
+    private String userIdOf(Cookie user) throws Exception {
+        return JsonPath.read(
+                mvc.get().uri("/api/v1/auth/me").cookie(user).exchange().getResponse().getContentAsString(), "$.id");
     }
 
     private Cookie becomeOwner() throws Exception {
