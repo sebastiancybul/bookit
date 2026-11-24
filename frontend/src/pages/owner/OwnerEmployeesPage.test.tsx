@@ -14,6 +14,11 @@ import {
   type Employee,
 } from '@/services/employees'
 import { listMyOfferings, type Offering } from '@/services/offerings'
+import {
+  getEmployeeSchedule,
+  replaceEmployeeSchedule,
+  type WorkSchedule,
+} from '@/services/schedules'
 
 vi.mock('@/services/employees', () => ({
   listMyEmployees: vi.fn(),
@@ -27,6 +32,11 @@ vi.mock('@/services/employees', () => ({
 
 vi.mock('@/services/offerings', () => ({
   listMyOfferings: vi.fn(),
+}))
+
+vi.mock('@/services/schedules', () => ({
+  getEmployeeSchedule: vi.fn(),
+  replaceEmployeeSchedule: vi.fn(),
 }))
 
 vi.mock('@/services/auth', () => ({
@@ -83,6 +93,8 @@ describe('OwnerEmployeesPage', () => {
     vi.mocked(deleteEmployee).mockReset()
     vi.mocked(listMyOfferings).mockReset()
     vi.mocked(listMyOfferings).mockResolvedValue([haircut, beard])
+    vi.mocked(getEmployeeSchedule).mockReset()
+    vi.mocked(replaceEmployeeSchedule).mockReset()
   })
 
   it('lists employees with position, known service names and account', async () => {
@@ -296,5 +308,165 @@ describe('OwnerEmployeesPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'No employees yet' }),
     ).toBeInTheDocument()
+  })
+
+  it('edits working hours only after the saved schedule has loaded', async () => {
+    const user = userEvent.setup()
+    const saved: WorkSchedule = {
+      intervals: [{ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' }],
+    }
+    let resolveSchedule: (schedule: WorkSchedule) => void = () => {}
+    vi.mocked(listMyEmployees).mockResolvedValue([anna])
+    vi.mocked(getEmployeeSchedule).mockReturnValue(
+      new Promise((resolve) => {
+        resolveSchedule = resolve
+      }),
+    )
+    vi.mocked(replaceEmployeeSchedule).mockImplementation(
+      async ({ intervals }) => ({ intervals }),
+    )
+    renderPage()
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Working hours of Anna K.' }),
+    )
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      within(dialog).getByRole('heading', { name: 'Working hours: Anna K.' }),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText('Loading…')).toBeInTheDocument()
+    expect(
+      within(dialog).queryByRole('button', { name: 'Save hours' }),
+    ).not.toBeInTheDocument()
+
+    resolveSchedule(saved)
+    expect(await within(dialog).findByLabelText('Monday')).toBeChecked()
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Copy Monday to weekdays' }),
+    )
+    await user.click(within(dialog).getByRole('button', { name: 'Save hours' }))
+
+    await waitFor(() =>
+      expect(replaceEmployeeSchedule).toHaveBeenCalledWith(
+        {
+          employeeId: anna.id,
+          intervals: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+            dayOfWeek,
+            startTime: '09:00',
+            endTime: '17:00',
+          })),
+        },
+        expect.anything(),
+      ),
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    expect(getEmployeeSchedule).toHaveBeenCalledWith(anna.id)
+  })
+
+  it('reloads the latest hours after a concurrent save', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listMyEmployees).mockResolvedValue([anna])
+    vi.mocked(getEmployeeSchedule)
+      .mockResolvedValueOnce({ intervals: [] })
+      .mockResolvedValueOnce({
+        intervals: [{ dayOfWeek: 3, startTime: '10:00', endTime: '14:00' }],
+      })
+    vi.mocked(replaceEmployeeSchedule).mockRejectedValue(
+      new ApiError({ status: 409, code: 'CONCURRENT_UPDATE' }),
+    )
+    renderPage()
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Working hours of Anna K.' }),
+    )
+    const dialog = await screen.findByRole('dialog')
+    await user.click(await within(dialog).findByLabelText('Monday'))
+    await user.click(within(dialog).getByRole('button', { name: 'Save hours' }))
+    await user.click(
+      await within(dialog).findByRole('button', { name: 'Reload' }),
+    )
+
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText('Wednesday')).toBeChecked(),
+    )
+    expect(within(dialog).getByLabelText('Monday')).not.toBeChecked()
+    expect(
+      within(dialog).queryByText(/Someone else saved/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows an error when the working hours cannot be loaded', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listMyEmployees).mockResolvedValue([anna])
+    vi.mocked(getEmployeeSchedule).mockRejectedValue(
+      new ApiError({ status: 403 }),
+    )
+    renderPage()
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Working hours of Anna K.' }),
+    )
+
+    expect(
+      await screen.findByText(
+        "We couldn't load the working hours. Please refresh the page.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('waits for fresh hours when the dialog is opened again', async () => {
+    const user = userEvent.setup()
+    let resolveSecond: (schedule: WorkSchedule) => void = () => {}
+    vi.mocked(listMyEmployees).mockResolvedValue([anna])
+    vi.mocked(getEmployeeSchedule)
+      .mockResolvedValueOnce({
+        intervals: [{ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' }],
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSecond = resolve
+        }),
+      )
+    renderPage()
+
+    const hours = await screen.findByRole('button', {
+      name: 'Working hours of Anna K.',
+    })
+    await user.click(hours)
+    await screen.findByLabelText('Monday')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+
+    await user.click(hours)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Loading…')).toBeInTheDocument()
+
+    resolveSecond({
+      intervals: [{ dayOfWeek: 3, startTime: '10:00', endTime: '14:00' }],
+    })
+    expect(await within(dialog).findByLabelText('Wednesday')).toBeChecked()
+    expect(within(dialog).getByLabelText('Monday')).not.toBeChecked()
+  })
+
+  it('says when the employee no longer exists', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listMyEmployees).mockResolvedValue([anna])
+    vi.mocked(getEmployeeSchedule).mockRejectedValue(
+      new ApiError({ status: 404 }),
+    )
+    renderPage()
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Working hours of Anna K.' }),
+    )
+
+    expect(
+      await screen.findByText('This employee no longer exists.'),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(listMyEmployees).toHaveBeenCalledTimes(2))
   })
 })
