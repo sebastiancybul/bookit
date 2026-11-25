@@ -13,5 +13,7 @@ public interface OfferingRepository extends JpaRepository<Offering, UUID> {
 
     Optional<Offering> findByIdAndBusinessIdAndActiveTrue(UUID id, UUID businessId);
 
+    Optional<Offering> findByIdAndActiveTrue(UUID id);
+
     long countByIdInAndBusinessIdAndActiveTrue(Collection<UUID> ids, UUID businessId);
 }

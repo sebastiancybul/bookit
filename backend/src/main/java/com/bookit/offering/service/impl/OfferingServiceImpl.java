@@ -93,6 +93,20 @@ public class OfferingServiceImpl implements OfferingService {
         return offeringRepository.countByIdInAndBusinessIdAndActiveTrue(offeringIds, businessId) == offeringIds.size();
     }
 
+    @Override
+    public BookableOffering getBookable(UUID offeringId) {
+        Offering offering = offeringRepository.findByIdAndActiveTrue(offeringId)
+                .orElseThrow(() -> new ResourceNotFoundException("Offering", offeringId));
+        return new BookableOffering(
+                offering.getId(),
+                offering.getBusinessId(),
+                offering.getName(),
+                offering.getDurationMinutes(),
+                offering.getBufferMinutes(),
+                offering.getPriceAmount(),
+                offering.getCurrency());
+    }
+
     private Offering findMine(UUID ownerId, UUID offeringId) {
         UUID businessId = businessService.getMyBusinessId(ownerId);
         return offeringRepository.findByIdAndBusinessIdAndActiveTrue(offeringId, businessId)

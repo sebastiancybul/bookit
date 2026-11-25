@@ -27,6 +27,8 @@ public interface EmployeeService {
 
     void requireMine(UUID ownerId, UUID employeeId);
 
+    void requireBookable(UUID employeeId, UUID businessId, UUID offeringId);
+
     record AccountChange(EmployeeResponse employee, boolean ownRolesChanged) {
     }
 }

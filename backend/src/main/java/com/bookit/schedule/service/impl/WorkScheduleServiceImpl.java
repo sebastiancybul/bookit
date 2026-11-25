@@ -7,6 +7,7 @@ import com.bookit.schedule.entity.WorkSchedule;
 import com.bookit.schedule.entity.WorkingHoursInterval;
 import com.bookit.schedule.repository.WorkScheduleRepository;
 import com.bookit.schedule.service.WorkScheduleService;
+import java.time.DayOfWeek;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,15 @@ public class WorkScheduleServiceImpl implements WorkScheduleService {
             throw translateConflict(ex);
         }
         return WorkScheduleResponse.from(schedule);
+    }
+
+    @Override
+    public List<WorkingHoursInterval> getIntervals(UUID employeeId, DayOfWeek day) {
+        return workScheduleRepository.findByEmployeeId(employeeId)
+                .map(schedule -> schedule.getIntervals().stream()
+                        .filter(interval -> interval.dayOfWeek() == day)
+                        .toList())
+                .orElseGet(List::of);
     }
 
     private static RuntimeException translateConflict(DataIntegrityViolationException ex) {
