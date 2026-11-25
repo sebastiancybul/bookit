@@ -5,6 +5,7 @@ import com.bookit.business.dto.BusinessRequest;
 import com.bookit.business.dto.BusinessResponse;
 import com.bookit.business.dto.BusinessSummaryResponse;
 import com.bookit.shared.web.PageResponse;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +27,11 @@ public interface BusinessService {
 
     UUID getPublicBusinessId(String slug);
 
+    BookingSettings getBookingSettings(UUID businessId);
+
     record CreateResult(BusinessResponse business, String accessToken) {
+    }
+
+    record BookingSettings(UUID businessId, ZoneId zone, int slotIntervalMinutes) {
     }
 }

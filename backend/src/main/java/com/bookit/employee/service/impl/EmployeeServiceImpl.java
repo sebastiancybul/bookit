@@ -153,6 +153,16 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
     }
 
+    @Override
+    public void requireBookable(UUID employeeId, UUID businessId, UUID offeringId) {
+        boolean bookable = employeeRepository.findByIdAndBusinessIdAndActiveTrue(employeeId, businessId)
+                .map(employee -> employee.getOfferingIds().contains(offeringId))
+                .orElse(false);
+        if (!bookable) {
+            throw new ResourceNotFoundException("Employee", employeeId);
+        }
+    }
+
     private Employee findMine(UUID businessId, UUID employeeId) {
         return employeeRepository.findByIdAndBusinessIdAndActiveTrue(employeeId, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", employeeId));

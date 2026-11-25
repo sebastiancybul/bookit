@@ -20,6 +20,7 @@ import com.bookit.user.entity.User;
 import com.bookit.user.repository.RoleRepository;
 import com.bookit.user.repository.UserRepository;
 import java.security.SecureRandom;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -134,6 +135,14 @@ public class BusinessServiceImpl implements BusinessService {
     @Override
     public UUID getPublicBusinessId(String slug) {
         return findPublic(slug).getId();
+    }
+
+    @Override
+    public BookingSettings getBookingSettings(UUID businessId) {
+        Business business = businessRepository.findByIdAndActiveTrue(businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Business", businessId));
+        return new BookingSettings(
+                business.getId(), ZoneId.of(business.getTimezone()), business.getSlotIntervalMinutes());
     }
 
     private Business findPublic(String slug) {

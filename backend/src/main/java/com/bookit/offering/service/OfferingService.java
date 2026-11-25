@@ -20,4 +20,16 @@ public interface OfferingService {
     List<PublicOfferingResponse> getPublic(String businessSlug);
 
     boolean allActiveInBusiness(Set<UUID> offeringIds, UUID businessId);
+
+    BookableOffering getBookable(UUID offeringId);
+
+    record BookableOffering(
+            UUID id,
+            UUID businessId,
+            String name,
+            int durationMinutes,
+            int bufferMinutes,
+            long priceAmount,
+            String currency) {
+    }
 }

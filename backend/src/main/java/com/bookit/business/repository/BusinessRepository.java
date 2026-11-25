@@ -19,6 +19,8 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
     @EntityGraph(attributePaths = "category")
     Optional<Business> findByPublicIdAndActiveTrue(String publicId);
 
+    Optional<Business> findByIdAndActiveTrue(UUID id);
+
     @EntityGraph(attributePaths = "category")
     @Query("""
             select b from Business b

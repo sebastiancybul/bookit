@@ -276,6 +276,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/businesses/{slug}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAvailableSlots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -445,6 +461,15 @@ export interface components {
             displayName: string;
             position: string | null;
             offeringIds: string[];
+        };
+        AvailableSlotResponse: {
+            /**
+             * Format: date-time
+             * @example 2026-11-26T09:15:00Z
+             */
+            startTime: string;
+            /** @example 10:15 */
+            localTime: string;
         };
     };
     responses: never;
@@ -1014,6 +1039,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicEmployeeResponse"][];
+                };
+            };
+        };
+    };
+    getAvailableSlots: {
+        parameters: {
+            query: {
+                offeringId: string;
+                employeeId: string;
+                date: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvailableSlotResponse"][];
                 };
             };
         };
