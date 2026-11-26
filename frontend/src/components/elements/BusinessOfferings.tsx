@@ -1,3 +1,5 @@
+import { Link } from 'react-router'
+import { buttonVariants } from '@/components/ui/button'
 import { useBusinessOfferings } from '@/hooks/useBusinessOfferings'
 import { formatDuration, formatPrice } from '@/lib/format'
 
@@ -45,9 +47,18 @@ export function BusinessOfferings({ slug }: BusinessOfferingsProps) {
                   {offering.description && ` · ${offering.description}`}
                 </span>
               </div>
-              <span className="text-base font-bold">
-                {formatPrice(offering.priceAmount, offering.currency)}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="text-base font-bold">
+                  {formatPrice(offering.priceAmount, offering.currency)}
+                </span>
+                <Link
+                  to={`/businesses/${slug}/book?offeringId=${offering.id}`}
+                  aria-label={`Book ${offering.name}`}
+                  className={buttonVariants({ size: 'sm' })}
+                >
+                  Book
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
