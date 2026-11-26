@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { PanelLayout } from '@/components/layouts/PanelLayout'
 import { PublicLayout } from '@/components/layouts/PublicLayout'
+import { BookingPage } from '@/pages/BookingPage'
 import { BusinessPage } from '@/pages/BusinessPage'
 import { CreateBusinessPage } from '@/pages/CreateBusinessPage'
 import { ErrorPage } from '@/pages/ErrorPage'
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, Component: HomePage },
           { path: 'businesses/:slug', Component: BusinessPage },
+          { path: 'businesses/:slug/book', Component: BookingPage },
           {
             Component: ProtectedRoute,
             children: [{ path: 'business/new', Component: CreateBusinessPage }],
