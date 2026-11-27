@@ -37,8 +37,13 @@ public class BookingServiceImpl implements BookingService {
             return replay.get();
         }
 
-        BookableOffering offering = availabilityService.requireAvailableSlot(
-                request.offeringId(), request.employeeId(), request.startTime());
+        BookableOffering offering;
+        try {
+            offering = availabilityService.requireAvailableSlot(
+                    request.offeringId(), request.employeeId(), request.startTime());
+        } catch (BusinessRuleException slotTaken) {
+            return findReplay(clientId, idempotencyKey, request).orElseThrow(() -> slotTaken);
+        }
 
         try {
             return insert(clientId, idempotencyKey, request, offering);

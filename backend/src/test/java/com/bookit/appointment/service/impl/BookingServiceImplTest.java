@@ -138,6 +138,19 @@ class BookingServiceImplTest {
     }
 
     @Test
+    void slotTakenByOwnConcurrentDuplicateReturnsTheWinner() {
+        given(appointmentRepository.findByClientIdAndIdempotencyKey(CLIENT_ID, KEY))
+                .willReturn(Optional.empty(), Optional.of(existing("Short on the sides")));
+        given(availabilityService.requireAvailableSlot(OFFERING_ID, EMPLOYEE_ID, START))
+                .willThrow(AvailabilityServiceImpl.slotTaken());
+
+        BookingResult result = service.book(CLIENT_ID, KEY, REQUEST);
+
+        assertThat(result.created()).isFalse();
+        then(appointmentWriter).shouldHaveNoInteractions();
+    }
+
+    @Test
     void integrityErrorCausedByOwnConcurrentDuplicateReturnsTheWinner() {
         given(appointmentRepository.findByClientIdAndIdempotencyKey(CLIENT_ID, KEY))
                 .willReturn(Optional.empty(), Optional.of(existing("Short on the sides")));

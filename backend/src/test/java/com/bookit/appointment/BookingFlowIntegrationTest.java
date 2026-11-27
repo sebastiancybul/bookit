@@ -133,8 +133,7 @@ class BookingFlowIntegrationTest {
 
         List<Response> responses = inParallel(() -> book(client, key, setup, setup.employeeId(), NINE_AM, null));
 
-        assertThat(responses).filteredOn(r -> r.status() == 201).hasSize(1);
-        assertThat(responses).filteredOn(r -> r.status() == 200).hasSize(PARALLEL_REQUESTS - 1);
+        assertThat(responses).extracting(Response::status).containsExactlyInAnyOrder(201, 200, 200, 200, 200);
         assertThat(responses).extracting(r -> JsonPath.<String>read(r.body(), "$.id")).containsOnly(
                 appointmentsOf(setup.employeeId()).getFirst().getId().toString());
         assertThat(appointmentsOf(setup.employeeId())).hasSize(1);
