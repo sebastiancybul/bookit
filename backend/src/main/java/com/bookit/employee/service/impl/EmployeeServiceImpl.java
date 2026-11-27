@@ -7,6 +7,7 @@ import com.bookit.employee.dto.PublicEmployeeResponse;
 import com.bookit.employee.entity.Employee;
 import com.bookit.employee.repository.EmployeeRepository;
 import com.bookit.employee.service.EmployeeService;
+import com.bookit.employee.service.UpcomingAppointments;
 import com.bookit.offering.service.OfferingService;
 import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.shared.error.InvalidFieldException;
@@ -21,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -35,6 +37,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final BusinessService businessService;
     private final OfferingService offeringService;
     private final UserService userService;
+    private final UpcomingAppointments upcomingAppointments;
 
     @Override
     public List<EmployeeResponse> getMine(UUID ownerId) {
@@ -129,7 +132,15 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional
     public void delete(UUID ownerId, UUID employeeId) {
-        Employee employee = findMine(businessService.getMyBusinessId(ownerId), employeeId);
+        Employee employee = employeeRepository
+                .findActiveForUpdate(employeeId, businessService.getMyBusinessId(ownerId))
+                .orElseThrow(() -> new ResourceNotFoundException("Employee", employeeId));
+        long upcoming = upcomingAppointments.countForEmployee(employeeId);
+        if (upcoming > 0) {
+            throw new BusinessRuleException(
+                    "EMPLOYEE_HAS_UPCOMING_APPOINTMENTS",
+                    "This employee has " + upcoming + " upcoming or ongoing appointment(s)");
+        }
         UUID previousUserId = employee.getUserId();
         employee.deactivate();
         if (previousUserId != null) {
@@ -161,6 +172,12 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (!bookable) {
             throw new ResourceNotFoundException("Employee", employeeId);
         }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean lockIfActive(UUID employeeId) {
+        return employeeRepository.findActiveForShare(employeeId).isPresent();
     }
 
     private Employee findMine(UUID businessId, UUID employeeId) {

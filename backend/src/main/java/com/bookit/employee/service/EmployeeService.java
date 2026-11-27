@@ -29,6 +29,8 @@ public interface EmployeeService {
 
     void requireBookable(UUID employeeId, UUID businessId, UUID offeringId);
 
+    boolean lockIfActive(UUID employeeId);
+
     record AccountChange(EmployeeResponse employee, boolean ownRolesChanged) {
     }
 }
