@@ -239,6 +239,37 @@ class EmployeeFlowIntegrationTest {
     }
 
     @Test
+    void deletedOfferingDisappearsFromEmployeeResponses() throws Exception {
+        Cookie owner = becomeOwner();
+        String haircut = createOffering(owner, "Haircut");
+        String beard = createOffering(owner, "Beard trim");
+        String annaId = createEmployee(owner, "Anna K.");
+        assign(owner, annaId, haircut, beard);
+
+        assertThat(send(HttpMethod.DELETE, OFFERINGS_URL + "/" + beard, owner, null))
+                .hasStatus(HttpStatus.NO_CONTENT);
+
+        assertThat(mvc.get().uri(EMPLOYEES_URL).cookie(owner))
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .extractingPath("$[0].offeringIds")
+                .asArray()
+                .containsExactly(haircut);
+        assertThat(send(HttpMethod.PUT, EMPLOYEES_URL + "/" + annaId, owner, "{\"displayName\": \"Anna K.\"}"))
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .extractingPath("$.offeringIds")
+                .asArray()
+                .containsExactly(haircut);
+        assertThat(mvc.get().uri("/api/v1/businesses/" + slugOf(owner) + "/employees"))
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .extractingPath("$[0].offeringIds")
+                .asArray()
+                .containsExactly(haircut);
+    }
+
+    @Test
     void ownerListLoadsAssignmentsWithoutNPlusOneQueries() throws Exception {
         Cookie owner = becomeOwner();
         String haircut = createOffering(owner, "Haircut");
@@ -260,7 +291,7 @@ class EmployeeFlowIntegrationTest {
                     assertThat(json).extractingPath("$[*].accountEmail").asArray().doesNotContainNull();
                 });
 
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(3);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(4);
     }
 
     @Test
