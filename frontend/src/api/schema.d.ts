@@ -180,6 +180,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["bookAppointment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/csrf": {
         parameters: {
             query?: never;
@@ -424,6 +440,58 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
+        };
+        CreateAppointmentRequest: {
+            /** Format: uuid */
+            offeringId: string;
+            /** Format: uuid */
+            employeeId: string;
+            /**
+             * Format: date-time
+             * @example 2026-12-05T13:00:00Z
+             */
+            startTime: string;
+            clientNote?: string | null;
+        };
+        ProblemDetail: {
+            /** Format: uri */
+            type?: string;
+            title?: string;
+            /** Format: int32 */
+            status?: number;
+            detail?: string;
+            /** Format: uri */
+            instance?: string;
+            code?: string;
+            errors?: {
+                field: string;
+                message: string;
+            }[];
+        };
+        AppointmentResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            offeringId: string;
+            offeringName: string;
+            /** Format: uuid */
+            employeeId: string;
+            /**
+             * Format: date-time
+             * @example 2026-12-05T13:00:00Z
+             */
+            startTime: string;
+            /**
+             * Format: date-time
+             * @example 2026-12-05T13:30:00Z
+             */
+            endTime: string;
+            /** @enum {string} */
+            status: "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
+            /** Format: int64 */
+            priceAmount: number;
+            currency: string;
+            clientNote: string | null;
         };
         BusinessSummaryResponse: {
             publicId: string;
@@ -910,6 +978,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+        };
+    };
+    bookAppointment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAppointmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Same request repeated with the same Idempotency-Key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentResponse"];
+                };
+            };
+            /** @description Appointment booked */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentResponse"];
+                };
+            };
+            /** @description code SLOT_TAKEN: the time is no longer free for this employee; code CLIENT_OVERLAP: the client already has another appointment at this time */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description code IDEMPOTENCY_KEY_REUSED: this Idempotency-Key was already used for a different booking */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };

@@ -64,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/owner/business").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/appointments").hasRole("CLIENT")
                         .requestMatchers("/api/v1/owner/**").hasRole("OWNER")
                         .requestMatchers("/api/v1/employee/**").hasRole("EMPLOYEE")
                         .anyRequest().denyAll())
