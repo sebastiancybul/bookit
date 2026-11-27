@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 
 import com.bookit.appointment.config.BookingProperties;
 import com.bookit.appointment.dto.AvailableSlotResponse;
+import com.bookit.appointment.repository.AppointmentRepository;
 import com.bookit.business.service.BusinessService;
 import com.bookit.business.service.BusinessService.BookingSettings;
 import com.bookit.employee.service.EmployeeService;
@@ -16,6 +17,8 @@ import com.bookit.offering.service.OfferingService;
 import com.bookit.offering.service.OfferingService.BookableOffering;
 import com.bookit.schedule.entity.WorkingHoursInterval;
 import com.bookit.schedule.service.WorkScheduleService;
+import com.bookit.schedule.slot.BusyRange;
+import com.bookit.shared.error.BusinessRuleException;
 import com.bookit.shared.error.InvalidFieldException;
 import com.bookit.shared.error.ResourceNotFoundException;
 import java.time.Clock;
@@ -55,6 +58,9 @@ class AvailabilityServiceImplTest {
 
     @Mock
     WorkScheduleService workScheduleService;
+
+    @Mock
+    AppointmentRepository appointmentRepository;
 
     AvailabilityServiceImpl service;
 
@@ -138,12 +144,83 @@ class AvailabilityServiceImplTest {
         then(employeeService).should(never()).requireBookable(any(), any(), any());
     }
 
+    @Test
+    void requireAvailableSlotReturnsOfferingForFreeSlotAndReadsBusyRangesOfThatDay() {
+        LocalDate tomorrow = TODAY.plusDays(1);
+        stubOfferingForBooking();
+        given(workScheduleService.getIntervals(EMPLOYEE_ID, tomorrow.getDayOfWeek()))
+                .willReturn(List.of(interval(tomorrow, "09:00", "10:00")));
+
+        BookableOffering offering =
+                service.requireAvailableSlot(OFFERING_ID, EMPLOYEE_ID, Instant.parse("2026-11-27T08:15:00Z"));
+
+        assertThat(offering.id()).isEqualTo(OFFERING_ID);
+        then(employeeService).should().requireBookable(EMPLOYEE_ID, BUSINESS_ID, OFFERING_ID);
+        then(appointmentRepository).should().findBusyRanges(
+                EMPLOYEE_ID, Instant.parse("2026-11-26T23:00:00Z"), Instant.parse("2026-11-27T23:00:00Z"));
+    }
+
+    @Test
+    void requireAvailableSlotRejectsStartOverlappingBusyRange() {
+        LocalDate tomorrow = TODAY.plusDays(1);
+        stubOfferingForBooking();
+        given(workScheduleService.getIntervals(EMPLOYEE_ID, tomorrow.getDayOfWeek()))
+                .willReturn(List.of(interval(tomorrow, "09:00", "10:00")));
+        given(appointmentRepository.findBusyRanges(any(), any(), any())).willReturn(List.of(
+                new BusyRange(Instant.parse("2026-11-27T08:35:00Z"), Instant.parse("2026-11-27T08:50:00Z"))));
+
+        assertSlotTaken(Instant.parse("2026-11-27T08:15:00Z"));
+        assertThat(service.requireAvailableSlot(OFFERING_ID, EMPLOYEE_ID, Instant.parse("2026-11-27T08:00:00Z")))
+                .isNotNull();
+    }
+
+    @Test
+    void requireAvailableSlotRejectsStartOffTheSlotGrid() {
+        LocalDate tomorrow = TODAY.plusDays(1);
+        stubOfferingForBooking();
+        given(workScheduleService.getIntervals(EMPLOYEE_ID, tomorrow.getDayOfWeek()))
+                .willReturn(List.of(interval(tomorrow, "09:00", "10:00")));
+
+        assertSlotTaken(Instant.parse("2026-11-27T08:07:00Z"));
+    }
+
+    @Test
+    void requireAvailableSlotRejectsStartsOutsideBookingWindowWithoutComputingSlots() {
+        stubOfferingForBooking();
+
+        assertSlotTaken(Instant.parse("2026-11-25T08:00:00Z"));
+        assertSlotTaken(TODAY.plusDays(181).atTime(9, 0).atZone(WARSAW).toInstant());
+        then(workScheduleService).should(never()).getIntervals(any(), any());
+    }
+
+    @Test
+    void requireAvailableSlotRejectsStartBeforeMinLeadTime() {
+        stubOfferingForBooking();
+        given(workScheduleService.getIntervals(EMPLOYEE_ID, TODAY.getDayOfWeek()))
+                .willReturn(List.of(interval(TODAY, "09:00", "12:00")));
+
+        assertSlotTaken(Instant.parse("2026-11-26T09:45:00Z"));
+    }
+
+    private void assertSlotTaken(Instant start) {
+        assertThatThrownBy(() -> service.requireAvailableSlot(OFFERING_ID, EMPLOYEE_ID, start))
+                .isInstanceOfSatisfying(BusinessRuleException.class,
+                        ex -> assertThat(ex.getCode()).isEqualTo("SLOT_TAKEN"));
+    }
+
+    private void stubOfferingForBooking() {
+        given(offeringService.getBookable(OFFERING_ID)).willReturn(
+                new BookableOffering(OFFERING_ID, BUSINESS_ID, "Haircut", 30, 0, 5000, "PLN"));
+        given(businessService.getBookingSettings(BUSINESS_ID)).willReturn(new BookingSettings(BUSINESS_ID, WARSAW, 15));
+    }
+
     private AvailabilityServiceImpl serviceAt(Instant now) {
         return new AvailabilityServiceImpl(
                 businessService,
                 offeringService,
                 employeeService,
                 workScheduleService,
+                appointmentRepository,
                 new BookingProperties(Duration.ofHours(1), 180),
                 Clock.fixed(now, ZoneOffset.UTC));
     }
