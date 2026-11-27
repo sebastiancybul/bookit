@@ -94,6 +94,11 @@ public class OfferingServiceImpl implements OfferingService {
     }
 
     @Override
+    public Set<UUID> activeIdsInBusiness(UUID businessId) {
+        return offeringRepository.findActiveIdsByBusinessId(businessId);
+    }
+
+    @Override
     public BookableOffering getBookable(UUID offeringId) {
         Offering offering = offeringRepository.findByIdAndActiveTrue(offeringId)
                 .orElseThrow(() -> new ResourceNotFoundException("Offering", offeringId));

@@ -47,9 +47,12 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .map(Employee::getUserId)
                 .filter(Objects::nonNull)
                 .toList());
+        Set<UUID> activeOfferingIds = offeringService.activeIdsInBusiness(businessId);
         return employees.stream()
                 .map(employee -> EmployeeResponse.from(
-                        employee, employee.getUserId() == null ? null : emails.get(employee.getUserId())))
+                        employee,
+                        employee.getUserId() == null ? null : emails.get(employee.getUserId()),
+                        activeOfferingIds))
                 .toList();
     }
 
@@ -62,7 +65,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         } catch (DataIntegrityViolationException ex) {
             throw translateConflict(ex);
         }
-        return EmployeeResponse.from(employee, null);
+        return EmployeeResponse.from(employee, null, Set.of());
     }
 
     @Override
@@ -126,7 +129,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
         employee.unlinkAccount();
         userService.removeRole(previousUserId, ROLE_EMPLOYEE);
-        return new AccountChange(EmployeeResponse.from(employee, null), ownerId.equals(previousUserId));
+        return new AccountChange(toResponse(employee, null), ownerId.equals(previousUserId));
     }
 
     @Override
@@ -151,8 +154,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public List<PublicEmployeeResponse> getPublic(String businessSlug) {
         UUID businessId = businessService.getPublicBusinessId(businessSlug);
+        Set<UUID> activeOfferingIds = offeringService.activeIdsInBusiness(businessId);
         return employeeRepository.findByBusinessIdAndActiveTrueOrderByDisplayNameAsc(businessId).stream()
-                .map(PublicEmployeeResponse::from)
+                .map(employee -> PublicEmployeeResponse.from(employee, activeOfferingIds))
                 .toList();
     }
 
@@ -188,7 +192,12 @@ public class EmployeeServiceImpl implements EmployeeService {
     private EmployeeResponse toResponse(Employee employee) {
         UUID userId = employee.getUserId();
         String email = userId == null ? null : userService.getEmails(List.of(userId)).get(userId);
-        return EmployeeResponse.from(employee, email);
+        return toResponse(employee, email);
+    }
+
+    private EmployeeResponse toResponse(Employee employee, String accountEmail) {
+        return EmployeeResponse.from(
+                employee, accountEmail, offeringService.activeIdsInBusiness(employee.getBusinessId()));
     }
 
     private static RuntimeException translateConflict(DataIntegrityViolationException ex) {

@@ -21,6 +21,8 @@ public interface OfferingService {
 
     boolean allActiveInBusiness(Set<UUID> offeringIds, UUID businessId);
 
+    Set<UUID> activeIdsInBusiness(UUID businessId);
+
     BookableOffering getBookable(UUID offeringId);
 
     record BookableOffering(
