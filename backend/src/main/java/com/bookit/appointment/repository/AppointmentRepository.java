@@ -1,6 +1,7 @@
 package com.bookit.appointment.repository;
 
 import com.bookit.appointment.entity.Appointment;
+import com.bookit.appointment.entity.AppointmentStatus;
 import com.bookit.schedule.slot.BusyRange;
 import java.time.Instant;
 import java.util.List;
@@ -26,4 +27,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
             @Param("employeeId") UUID employeeId,
             @Param("from") Instant from,
             @Param("to") Instant to);
+
+    long countByEmployeeIdAndStatusAndEndTimeAfter(UUID employeeId, AppointmentStatus status, Instant now);
 }

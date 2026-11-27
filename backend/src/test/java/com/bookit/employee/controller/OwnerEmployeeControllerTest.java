@@ -368,6 +368,18 @@ class OwnerEmployeeControllerTest {
                 .hasStatus(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void deleteOfEmployeeWithUpcomingAppointmentsReturns409WithCode() {
+        willThrow(new BusinessRuleException("EMPLOYEE_HAS_UPCOMING_APPOINTMENTS", "Has 2 upcoming appointment(s)"))
+                .given(employeeService).delete(any(), any());
+
+        assertThat(send(HttpMethod.DELETE, BASE_URL + "/" + EMPLOYEE_ID, null))
+                .hasStatus(HttpStatus.CONFLICT)
+                .bodyJson()
+                .extractingPath("$.code")
+                .isEqualTo("EMPLOYEE_HAS_UPCOMING_APPOINTMENTS");
+    }
+
     private MvcTestResult send(HttpMethod method, String uri, String json) {
         Cookie xsrf = mvc.get().uri("/api/v1/csrf").exchange().getResponse().getCookie("XSRF-TOKEN");
         var request = mvc.method(method).uri(uri)

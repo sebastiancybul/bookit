@@ -9,6 +9,9 @@ import com.bookit.employee.dto.EmployeeRequest;
 import com.bookit.employee.dto.EmployeeResponse;
 import com.bookit.employee.service.EmployeeService;
 import com.bookit.employee.service.EmployeeService.AccountChange;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -16,6 +19,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -74,6 +78,14 @@ public class OwnerEmployeeController {
         return ResponseEntity.noContent().headers(ownTokenCookie(userId, change)).build();
     }
 
+    @ApiResponse(responseCode = "204", description = "Employee deactivated")
+    @ApiResponse(
+            responseCode = "409",
+            description = "code EMPLOYEE_HAS_UPCOMING_APPOINTMENTS: the employee has upcoming or ongoing "
+                    + "confirmed appointments; cancel them first",
+            content = @Content(
+                    mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping(path = "/{id}", version = "1")
     public void deleteEmployee(@CurrentUserId UUID userId, @PathVariable UUID id) {

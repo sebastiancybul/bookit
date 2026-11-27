@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.bookit.TestcontainersConfiguration;
 import com.bookit.appointment.entity.Appointment;
+import com.bookit.appointment.entity.AppointmentStatus;
 import com.bookit.appointment.repository.AppointmentRepository;
 import com.bookit.auth.config.SecurityConfig;
 import com.bookit.offering.service.OfferingService;
@@ -31,6 +32,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpMethod;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -62,6 +64,9 @@ class BookingFlowIntegrationTest {
 
     @Autowired
     OfferingService offeringService;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     Cookie xsrf;
 
@@ -222,6 +227,103 @@ class BookingFlowIntegrationTest {
         assertThat(violationOf(Appointment.book(first.getClientId(), otherEmployee, offering,
                         Instant.parse(TEN_AM), null, first.getIdempotencyKey())))
                 .contains(new Violation(PgErrors.UNIQUE_VIOLATION, "uk_appointments_client_idempotency_key"));
+    }
+
+    @Test
+    void employeeWithUpcomingAppointmentCannotBeDeleted() throws Exception {
+        Business setup = business();
+        assertThat(book(registerClient(), UUID.randomUUID(), setup, setup.employeeId(), NINE_AM, null))
+                .hasStatus(HttpStatus.CREATED);
+
+        assertThat(send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + setup.employeeId(), setup.owner(), null))
+                .hasStatus(HttpStatus.CONFLICT)
+                .bodyJson()
+                .satisfies(json -> {
+                    assertThat(json).extractingPath("$.code").isEqualTo("EMPLOYEE_HAS_UPCOMING_APPOINTMENTS");
+                    assertThat(json).extractingPath("$.detail").asString().contains("1 upcoming");
+                });
+        assertThat(mvc.get().uri(availabilityUrl(setup, setup.employeeId()))).hasStatus(HttpStatus.OK);
+    }
+
+    @Test
+    void employeeWithOnlyPastAppointmentsCanBeDeleted() throws Exception {
+        Business setup = business();
+        String otherEmployeeId = bookableEmployee(setup, "Bartek W.");
+        Appointment upcomingElsewhere = bookAndLoad(registerClient(), setup, otherEmployeeId, NINE_AM);
+        BookableOffering offering = offeringService.getBookable(UUID.fromString(setup.offeringId()));
+        appointmentRepository.saveAndFlush(Appointment.book(upcomingElsewhere.getClientId(),
+                UUID.fromString(setup.employeeId()), offering, Instant.parse("2026-11-25T08:00:00Z"), null,
+                UUID.randomUUID()));
+
+        assertThat(send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + setup.employeeId(), setup.owner(), null))
+                .hasStatus(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void ongoingAppointmentBlocksDeletingTheEmployee() throws Exception {
+        Business setup = business();
+        String otherEmployeeId = bookableEmployee(setup, "Bartek W.");
+        Appointment elsewhere = bookAndLoad(registerClient(), setup, otherEmployeeId, NINE_AM);
+        BookableOffering offering = offeringService.getBookable(UUID.fromString(setup.offeringId()));
+        appointmentRepository.saveAndFlush(Appointment.book(elsewhere.getClientId(),
+                UUID.fromString(setup.employeeId()), offering, Instant.parse("2026-11-26T09:00:00Z"), null,
+                UUID.randomUUID()));
+
+        assertThat(send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + setup.employeeId(), setup.owner(), null))
+                .hasStatus(HttpStatus.CONFLICT)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .asString()
+                .contains("1 upcoming or ongoing");
+    }
+
+    @Test
+    void cancelledFutureAppointmentDoesNotBlockDeletingTheEmployee() throws Exception {
+        Business setup = business();
+        Appointment booked = bookAndLoad(registerClient(), setup, setup.employeeId(), NINE_AM);
+        jdbcTemplate.update("""
+                UPDATE appointments
+                SET status = 'CANCELLED', cancelled_at = now(), cancelled_by = 'BUSINESS'
+                WHERE id = ?
+                """, booked.getId());
+
+        assertThat(send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + setup.employeeId(), setup.owner(), null))
+                .hasStatus(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void concurrentDeleteAndBookingNeverBothSucceed() throws Exception {
+        for (int round = 0; round < 10; round++) {
+            Business setup = business();
+            Cookie client = registerClient();
+
+            List<Response> responses = inParallel(List.of(
+                    () -> send(HttpMethod.DELETE, EMPLOYEES_URL + "/" + setup.employeeId(), setup.owner(), null),
+                    () -> book(client, UUID.randomUUID(), setup, setup.employeeId(), NINE_AM, null)));
+
+            int deleteStatus = responses.get(0).status();
+            int bookingStatus = responses.get(1).status();
+            assertThat(deleteStatus == 204 && bookingStatus == 201)
+                    .as("round %d: delete %d, booking %d", round, deleteStatus, bookingStatus)
+                    .isFalse();
+            assertThat(appointmentsOf(setup.employeeId()))
+                    .as("round %d: delete %d, booking %d", round, deleteStatus, bookingStatus)
+                    .hasSize(deleteStatus == 204 ? 0 : 1);
+        }
+    }
+
+    @Test
+    void offeringWithUpcomingAppointmentCanBeDeletedAndAppointmentKeepsSnapshot() throws Exception {
+        Business setup = business();
+        Appointment booked = bookAndLoad(registerClient(), setup, setup.employeeId(), NINE_AM);
+
+        assertThat(send(HttpMethod.DELETE, OFFERINGS_URL + "/" + setup.offeringId(), setup.owner(), null))
+                .hasStatus(HttpStatus.NO_CONTENT);
+
+        Appointment reloaded = appointmentRepository.findById(booked.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
+        assertThat(reloaded.getOfferingName()).isEqualTo("Haircut");
+        assertThat(reloaded.getPriceAmount()).isEqualTo(5000);
     }
 
     private record Business(Cookie owner, String slug, String offeringId, String employeeId) {
