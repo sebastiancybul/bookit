@@ -699,12 +699,21 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No Content */
+            /** @description Employee deactivated */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description code EMPLOYEE_HAS_UPCOMING_APPOINTMENTS: the employee has upcoming or ongoing confirmed appointments; cancel them first */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
